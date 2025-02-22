@@ -45,6 +45,17 @@ length = st.number_input("Введите длину изделия (м)", value=
 width = st.number_input("Введите ширину изделия (м)", value=1.0, min_value=0.01)
 count = st.number_input("Введите количество изделий", value=1, min_value=1, step=1)
 
+# Чекбокс для юридического лица
+is_legal_entity = st.checkbox("Юридическое лицо")
+
+# Чекбокс для скидки
+apply_discount = st.checkbox("Предоставить скидку")
+
+# Поле для ввода скидки (появляется, если чекбокс выбран)
+discount_percent = 0
+if apply_discount:
+    discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0, max_value=100)
+
 # Функция для форматирования стоимости с разделением на разряды
 def format_cost(cost):
     return "{:,.2f} руб".format(cost).replace(",", " ")
@@ -59,6 +70,17 @@ def calculate_cost(material_price, length, width, count):
     # Расчёт стоимости
     cost = ((sq_pol * material_price) + (luvers_pol * price_polog['luver']) + (sq_pol * 0.2 * price_polog['work'])) * 2.5
     cost -= cost % -100  # Округляем до сотен
+
+    # Увеличиваем стоимость на 25%, если выбрано юридическое лицо
+    if is_legal_entity:
+        cost = cost * 0.25 +cost
+        #cost = int(cost // 100 * 100)  # Округляем до сотен
+
+    # Применяем скидку, если она указана
+    if discount_percent > 0:
+        cost *= (1 - discount_percent / 100)
+        cost = int(cost // 100 * 100)  # Округляем до сотен
+
     total_cost = cost * count
     return cost, total_cost
 
@@ -84,20 +106,27 @@ results_df.reset_index(drop=True, inplace=True)
 # Создаём HTML-таблицу без индексов
 html_table = results_df.to_html(index=False)
 
-# Добавляем CSS для скрытия индексов и улучшения отображения таблицы
+# Добавляем CSS для адаптации таблицы под тёмную тему
 html = f"""
 <style>
     table {{
         width: 100%;
         border-collapse: collapse;
+        color: white;  /* Цвет текста в таблице */
+        background-color: #262730;  /* Цвет фона таблицы */
     }}
     th, td {{
-        border: 1px solid #ddd;
+        border: 1px solid #444;  /* Границы ячеек */
         padding: 8px;
         text-align: left;
     }}
     th {{
-        background-color: #f2f2f2;
+        background-color: #1c1c24;  /* Цвет фона заголовков */
+        color: white;  /* Цвет текста в заголовках */
+    }}
+    td {{
+        background-color: #262730;  /* Цвет фона ячеек */
+        color: white;  /* Цвет текста в ячейках */
     }}
 </style>
 {html_table}
