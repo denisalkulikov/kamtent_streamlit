@@ -128,7 +128,7 @@ def page_auto_calculator():
     st.title("Калькулятор авто")
 
     # Ваш код для другого калькулятора
-    st.write("Калькулятор ещё в процессе доработки...")
+    st.write("Осталось перенести расчёт каркаса...")
 
     # Словарь с ценами на материалы
     price = {
@@ -327,10 +327,124 @@ def page_auto_calculator():
 
         # Округляем до сотых в большую сторону
         total_cost -= total_cost % -100
+
         return total_cost
+
+    # Функция для расчёта стоимости МСК (пластины), Шторного механизма, Троса и Демонтажа тента
+    def calculate_additional_costs(length, width, height_p, is_vorota, is_schit, price):
+        # Расчёт периметров
+        perimetr_total = length * 2 + width * 2 + height_p * 4
+        perimetr_half = length * 2 + width * 2 + height_p * 2
+        perimetr_min = length * 2 + width * 2
+
+        # Расчёт количества кронштейнов
+        if math.ceil(length / 0.65 * 2) % 2 == 0:
+            kronshtein_count = math.ceil(length / 0.65 * 2)
+        else:
+            kronshtein_count = math.ceil(length / 0.65 * 2) + 1
+
+        # Расчёт количества труб и других компонентов
+        truba_30_30_count = (kronshtein_count / 2 * 2.55) / 6
+        truba_30_30_count -= truba_30_30_count % -1
+        truba_60_40_count = length / 6 * 2
+        truba_60_40_count -= truba_60_40_count % -1
+        shveler_count = length / 2.48 * 2
+        shveler_count -= shveler_count % -1
+        podshipnig_b_count = kronshtein_count
+        podshipnik_s_count = kronshtein_count * 2
+        gaika_count = kronshtein_count * 2
+        bolt_10_count = kronshtein_count
+        bolt_12_count = kronshtein_count * 2
+
+        # Расчёт количества пластин
+        if math.ceil((length - 1) / 0.65 * 2) % 2 == 0:
+            count_plastin_650 = math.ceil((length - 1) / 0.65 * 2)
+        else:
+            count_plastin_650 = math.ceil((length - 1) / 0.65 * 2) + 1
+        count_plastin_black = count_plastin_650 + 2
+
+        # Расчёт стоимости МСК (пластины)
+        msk_cost = int((kronshtein_count * price['kronshtein'] +
+                        truba_30_30_count * price['truba_30_30_2'] +
+                        truba_60_40_count * price['truba_60_40_3'] +
+                        shveler_count * price['shveler'] +
+                        podshipnig_b_count * price['podship_big'] +
+                        podshipnik_s_count * price['podship_small'] +
+                        gaika_count * price['gaika_m14'] +
+                        bolt_10_count * price['bolt_10_20'] +
+                        bolt_12_count * price['bolt_12_30'] +
+                        count_plastin_650 * price['plastina_650'] +
+                        count_plastin_black * price['plastina_black'] +
+                        2 * price['fiksator'] +
+                        2 * price['amortizator'] +
+                        48 * price['work'] +
+                        length * 6 * price['work']) * 2)
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            msk_cost *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            msk_cost *= (1 - discount_percent / 100)
+
+        msk_cost -= msk_cost % -100
+
+        # Расчёт стоимости Шторного механизма
+        shtorn_profile_count = length / 6 * 2
+        shtorn_profile_count -= shtorn_profile_count % -1
+        shtorn_work_count = length * 0.73
+        shtorn_work_count -= shtorn_work_count % -1
+        shtornik_cost = int((shtorn_profile_count * price['shtorn_profil'] + shtorn_work_count * price['work']) * 2)
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            shtornik_cost *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            shtornik_cost *= (1 - discount_percent / 100)
+
+        shtornik_cost -= shtornik_cost % -100
+
+        # Расчёт стоимости Троса
+        if is_vorota and is_schit:
+            tros_cost = int(perimetr_total * price['tros'] * 1.5)
+        elif not is_vorota and not is_schit:
+            tros_cost = int(perimetr_min * price['tros'] * 1.5)
+        else:
+            tros_cost = int(perimetr_half * price['tros'] * 1.5)
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            tros_cost *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            tros_cost *= (1 - discount_percent / 100)
+
+        tros_cost -= tros_cost % -100
+
+        # Расчёт стоимости Демонтажа тента
+        demontazh_tenta_cost = int(length * 0.6 * price['work'])
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            demontazh_tenta_cost *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            demontazh_tenta_cost *= (1 - discount_percent / 100)
+
+        demontazh_tenta_cost -= demontazh_tenta_cost % -100
+
+        return msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost
 
     # Рассчитываем площадь
     area = calculate_area(length, width, height_g, is_vorota, is_schit)
+
+    msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost = calculate_additional_costs(length, width, height_g,
+                                                                                          is_vorota, is_schit, price)
 
     # Площади для рекламы
     reklama_2_stenki = length * height_g * 2
@@ -429,6 +543,16 @@ def page_auto_calculator():
         ],
     })
 
+    # Создаём таблицу с дополнительными расчётами
+    additional_costs_df = pd.DataFrame({
+        "Наименование": ["МСК (пластины)", "Шторный механизм", "Трос", "Демонтаж тента"],
+        "Стоимость": [msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost]
+    })
+
+    # Форматируем стоимость
+    additional_costs_df['Стоимость'] = additional_costs_df['Стоимость'].apply(
+        lambda x: "{:,.2f} руб".format(x).replace(",", " "))
+
     # Функция для форматирования стоимости с разделением на разряды
     def format_cost(cost):
         if cost == "НЕВЕРНО!":
@@ -454,6 +578,13 @@ def page_auto_calculator():
         reklama_df,
         hide_index=True,  # Скрываем индексы
         use_container_width=True  # Растягиваем таблицу на всю ширину контейнера
+    )
+
+    # Выводим таблицу с дополнительными расчётами
+    st.dataframe(
+        additional_costs_df,
+        hide_index=True,
+        use_container_width=True
     )
 
 
