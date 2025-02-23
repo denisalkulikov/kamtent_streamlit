@@ -100,7 +100,6 @@ def page_polog_calculator():
                 'Стоимость за 1 изделие': cost_per_item,  # Числовое значение
                 'Стоимость за все изделия': total_cost  # Числовое значение
             })
-
     # Преобразуем результаты в DataFrame
     results_df = pd.DataFrame(results)
 
@@ -124,29 +123,150 @@ def page_polog_calculator():
 
 
 # Функция для второй страницы (другой калькулятор)
-def page_another_calculator():
-    st.title("Другой калькулятор")
+def page_auto_calculator():
+    st.title("Калькулятор авто")
 
     # Ваш код для другого калькулятора
-    st.write("Здесь будет другой калькулятор...")
+    st.write("Калькулятор ещё в процессе доработки...")
+
+    # Словарь с ценами на материалы
+    price = {
+        'pvh_630': 250,
+        'pvh_650': 385,
+        'pvh_750': 450,
+        'pvh_900': 500,
+        'work': 550,
+        'babochka': 100
+    }
+
+    # Словарь с русскими названиями материалов
+    material_names = {
+        'pvh_630': 'ПВХ630',
+        'pvh_650': 'ПВХ650',
+        'pvh_750': 'ПВХ750',
+        'pvh_900': 'ПВХ900'
+    }
+
+    # Ввод данных
+    length = st.number_input("Введите длину (м)", value=1.0, min_value=0.01)
+    width = st.number_input("Введите ширину (м)", value=1.0, min_value=0.01)
+    height_p = st.number_input("Введите полезную высоту (м)", value=1.0, min_value=0.01)
+    height_g = st.number_input("Введите высоту готовой стенки (м)", value=1.0, min_value=0.01)
+    height_b = st.number_input("Введите высоту борта (м)", value=1.0, min_value=0.01)
+
+    # Чекбокс для ворот
+    is_vorota = st.checkbox("Наличие ворот")
+
+    # Чекбокс для щита
+    is_schit = st.checkbox("Наличие щита")
+
+    # Функция для расчёта площади изделия
+    def calculate_area(length, width, height_g, is_vorota, is_schit):
+        # Площадь ткани
+        if is_vorota and is_schit:
+            sq = (length * height_g * 2) + (length * width)
+        elif is_vorota or is_schit:
+            sq = (length * height_g * 2) + (width * height_g) + (length * width)
+        else:
+            sq = (length * height_g * 2) + (width * height_g * 2) + (length * width)
+        return sq
+
+    # Функция для расчёта
+    def calculate_cost(material_price, area):
+        # Стоимость ткани
+        if length < 5:
+            cost = material_price * 2.8
+        elif length > 10:
+            cost = material_price * 2.4
+        else:
+            cost = material_price * 2.6
+        # Округляем до сотых в большую сторону
+        cost -= cost % -10
+        cost = cost * area
+        cost -= cost % -100
+        return cost
+
+    # Функция для расчёта стоимости "Тент (чулок)"
+    def calculate_chulok_cost(material_price, area, length):
+        # Стоимость ткани
+        fabric_cost = material_price * area
+        fabric_cost -= fabric_cost % -100
+
+        # Количество бабочек
+        babochka_count = ((round(length / 0.65)) - 6) * 3 + 6 * 5
+
+        # Стоимость бабочек
+        babochka_cost = babochka_count * price['babochka']
+
+        # Стоимость работы
+        work_cost = price['work'] * (length / 0.4)
+
+        # Итоговая стоимость
+        total_cost = (fabric_cost + babochka_cost + work_cost) * 2
+
+        # Округляем до сотых в большую сторону
+        total_cost -= total_cost % -100
+        return total_cost
+
+    # Рассчитываем площадь
+    area = calculate_area(length, width, height_g, is_vorota, is_schit)
+
+    # Создаём список для хранения результатов
+    results_typical = []  # Для типового тента
+    results_chulok = []   # Для тента (чулок)
+
+    # Расчёт для каждого материала
+    for material, material_price in price.items():
+        if material not in ['babochka', 'work']:  # Исключаем бабочки и работу
+            # Стоимость для типового тента
+            cost_typical = calculate_cost(material_price, area)
+            results_typical.append(cost_typical)
+
+            # Стоимость для тента (чулок)
+            cost_chulok = calculate_chulok_cost(material_price, area, length)
+            results_chulok.append(cost_chulok)
+
+    # Создаём DataFrame для таблицы
+    results_df = pd.DataFrame({
+        "Тент": ["Тент типовой", "Тент (чулок)"],
+        "ПВХ630": [results_typical[0], results_chulok[0]],  # Для ПВХ630
+        "ПВХ650": [results_typical[1], results_chulok[1]],  # Для ПВХ650
+        "ПВХ750": [results_typical[2], results_chulok[2]],  # Для ПВХ750
+        "ПВХ900": [results_typical[3], results_chulok[3]],  # Для ПВХ900
+    })
+
+    # Функция для форматирования стоимости с разделением на разряды
+    def format_cost(cost):
+        return "{:,.2f} руб".format(cost).replace(",", " ")
+
+    # Применяем форматирование к столбцам с ценами
+    for col in ["ПВХ630", "ПВХ650", "ПВХ750", "ПВХ900"]:
+        results_df[col] = results_df[col].apply(format_cost)
+
+    # Выводим таблицу с помощью st.dataframe
+    st.dataframe(
+        results_df,
+        hide_index=True,  # Скрываем индексы
+        use_container_width=True  # Растягиваем таблицу на всю ширину контейнера
+    )
 
 
 # Функция для третьей страницы (информация)
 def page_info():
-    st.title("Информация")
+    st.title("Ещё калькулятор")
 
     # Ваш код для страницы с информацией
-    st.write("Здесь будет информация о приложении...")
+    st.write("Место для ещё какого-нибудь калькулятора...")
 
 
 # Боковое меню для навигации
 st.sidebar.title("Меню")
-page = st.sidebar.radio("Выберите страницу", ["Калькулятор пологов", "Другой калькулятор", "Информация"])
+page = st.sidebar.radio("Выберите страницу", ["Калькулятор пологов", "Калькулятор авто", "Ещё калькулятор"])
 
 # Отображение выбранной страницы
 if page == "Калькулятор пологов":
     page_polog_calculator()
-elif page == "Другой калькулятор":
-    page_another_calculator()
-elif page == "Информация":
+elif page == "Калькулятор авто":
+    page_auto_calculator()
+elif page == "Ещё калькулятор":
     page_info()
