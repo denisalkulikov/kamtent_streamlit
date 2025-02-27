@@ -178,6 +178,8 @@ def page_auto_calculator():
     length = st.number_input("Введите длину (м)", value=1.0, min_value=0.01)
     width = st.number_input("Введите ширину (м)", value=1.0, min_value=0.01)
     height_g = st.number_input("Введите высоту готовой стенки (м)", value=1.0, min_value=0.01)
+    height_p = st.number_input("Введите полезную высоту (м)", value=1.0, min_value=0.01)
+    marka = st.selectbox("Выберите марку авто", ("Газель", "Иное"), index=None, placeholder="Выбрать вариант")
 
     # Чекбоксы для ворот и щита
     col1, col2 = st.columns(2)  # Разделяем на две колонки
@@ -332,7 +334,7 @@ def page_auto_calculator():
 
     # Функция для расчёта стоимости МСК (пластины), Шторного механизма, Троса и Демонтажа тента
     def calculate_additional_costs(length, width, height_p, is_vorota, is_schit, price):
-        # Расчёт периметров
+        # Расчёт периметров с использованием полезной высоты (height_p)
         perimetr_total = length * 2 + width * 2 + height_p * 4
         perimetr_half = length * 2 + width * 2 + height_p * 2
         perimetr_min = length * 2 + width * 2
@@ -407,7 +409,7 @@ def page_auto_calculator():
 
         shtornik_cost -= shtornik_cost % -100
 
-        # Расчёт стоимости Троса
+        # Расчёт стоимости Троса с использованием полезной высоты (height_p)
         if is_vorota and is_schit:
             tros_cost = int(perimetr_total * price['tros'] * 1.5)
         elif not is_vorota and not is_schit:
@@ -440,10 +442,70 @@ def page_auto_calculator():
 
         return msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost
 
+    # Функция для расчёта стоимости ворот
+    def calculate_vorota_cost(width, height_g, marka, price, is_legal_entity, discount_percent):
+        # Расчёт количества рамок и запоров
+        ramka_vorot = (width * 2 + height_g * 2) / 6
+        ramka_vorot -= ramka_vorot % -1
+        zapory_count = width * 2 / 6
+        zapory_count -= zapory_count % -1
+
+        # Расчёт стоимости ворот для Газели
+        vorota_gazel = int((price['fanera_18'] * 2 +
+                            price['petlya_gaz'] * 6 +
+                            price['zamki_gaz'] * 2 +
+                            (width * 2 + height_g * 3) * price['uplotnitel_18']) +
+                            ramka_vorot * price['truba_60_40_3'] +
+                            zapory_count * price['du_15'] +
+                            32 * price['work']) * 2
+        vorota_gazel -= vorota_gazel % -100
+
+        # Расчёт стоимости ворот для Камаза
+        vorota_kamaz = int((price['fanera_21_2'] * 2 +
+                            price['petlya_kamaz'] * 8 +
+                            price['zamki_kamaz'] * 2 +
+                            (width * 2 + height_g * 3) * price['uplotnitel_21']) +
+                            ramka_vorot * price['truba_60_40_3'] +
+                            zapory_count * price['du_15'] +
+                            32 * price['work']) * 2
+        vorota_kamaz -= vorota_kamaz % -100
+
+        # Расчёт стоимости ворот для других марок
+        vorota_other = int((price['fanera_21_3'] * 2 +
+                            price['petlya_kamaz'] * 8 +
+                            price['zamki_kamaz'] * 2 +
+                            (width * 2 + height_g * 3) * price['uplotnitel_21']) +
+                            ramka_vorot * price['truba_60_40_3'] +
+                            zapory_count * price['du_15'] +
+                            32 * price['work']) * 2
+        vorota_other -= vorota_other % -100
+
+        # Выбор стоимости ворот в зависимости от марки авто
+        if marka == "Газель":
+            vorota_cost = vorota_gazel
+        elif marka == "Иное" and height_g > 2.4:
+            vorota_cost = vorota_other
+        elif marka == "Иное" and height_g <= 2.4:
+            vorota_cost = vorota_kamaz
+        else:
+            vorota_cost = 0  # Если марка не выбрана
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            vorota_cost *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            vorota_cost *= (1 - discount_percent / 100)
+
+        vorota_cost -= vorota_cost % -100
+
+        return vorota_cost
+
     # Рассчитываем площадь
     area = calculate_area(length, width, height_g, is_vorota, is_schit)
 
-    msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost = calculate_additional_costs(length, width, height_g,
+    msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost = calculate_additional_costs(length, width, height_p,
                                                                                           is_vorota, is_schit, price)
 
     # Площади для рекламы
@@ -451,6 +513,9 @@ def page_auto_calculator():
     reklama_2_stenki_and_klapan = (length * height_g * 2) + (width * height_g)
     reklama_2_stenki_and_krysha = (length * height_g * 2) + (length * width)
     reklama_2_stenki_and_klapan_and_krysha = (length * height_g * 2) + (width * height_g) + (length * width)
+
+    # Внутри функции page_auto_calculator, после расчёта дополнительных затрат, добавим вызов новой функции
+    vorota_cost = calculate_vorota_cost(width, height_g, marka, price, is_legal_entity, discount_percent)
 
     # Создаём список для хранения результатов
     results_typical = []  # Для типового тента
@@ -549,9 +614,18 @@ def page_auto_calculator():
         "Стоимость": [msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost]
     })
 
+    # Создаём таблицу с расчётом стоимости ворот
+    vorota_df = pd.DataFrame({
+        "Наименование": ["Ворота"],
+        "Стоимость": [vorota_cost]
+    })
+
     # Форматируем стоимость
     additional_costs_df['Стоимость'] = additional_costs_df['Стоимость'].apply(
         lambda x: "{:,.2f} руб".format(x).replace(",", " "))
+
+    # Форматируем стоимость
+    vorota_df['Стоимость'] = vorota_df['Стоимость'].apply(lambda x: "{:,.2f} руб".format(x).replace(",", " "))
 
     # Функция для форматирования стоимости с разделением на разряды
     def format_cost(cost):
@@ -583,6 +657,13 @@ def page_auto_calculator():
     # Выводим таблицу с дополнительными расчётами
     st.dataframe(
         additional_costs_df,
+        hide_index=True,
+        use_container_width=True
+    )
+
+    # Выводим таблицу с расчётом стоимости ворот
+    st.dataframe(
+        vorota_df,
         hide_index=True,
         use_container_width=True
     )
