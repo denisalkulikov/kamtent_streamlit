@@ -132,14 +132,14 @@ def page_auto_calculator():
 
     # Словарь с ценами на материалы
     price = {
-        'pvh_630': 250,
-         'pvh_650': 385,
-         'pvh_750': 450,
-         'pvh_900': 500,
-         'fanera_21_2': 5500,
-         'fanera_21_3': 9400,
-         'fanera_18': 4700,
-         'petlya_gaz': 270,
+        'pvh_630': 260,
+        'pvh_650': 385,
+        'pvh_750': 450,
+        'pvh_900': 500,
+        'fanera_21_2': 5500,
+        'fanera_21_3': 9400,
+        'fanera_18': 4700,
+        'petlya_gaz': 270,
          'petlya_kamaz': 530,
          'zamki_gaz': 2500,
          'zamki_kamaz': 2900,
@@ -171,7 +171,18 @@ def page_auto_calculator():
          'truba_40_40_2': 960,
          'truba_40_20_2': 702,
          'doska': 205,
-         'truba_60_40_2': 1200
+         'truba_60_40_2': 1200,
+        'lenta_F1300': 60,
+        'rolik_sdvig': 500,
+        'zamok_so_stropoi': 450,
+        'mehanizm_natyascheniya': 7600,
+        'profil_allum': 2000,
+        'perehodnik_profilya': 1200,
+        'luvers_40': 25,
+        'espander': 100,
+        'kruchok_s': 30,
+        'luvers_12': 10
+
     }
 
     # Ввод данных
@@ -502,11 +513,84 @@ def page_auto_calculator():
 
         return vorota_cost
 
+    # Функция для расчёта сдвижных стенок
+    def calculate_sdvig_stenki_cost(length, height_g, price, is_legal_entity, discount_percent):
+        # Расчёт составляющих частей
+        square_sdvig_stenok = (length + 0.9) * height_g + (length + 0.9)
+        rolik_sd = round(length / 0.55)
+        zamok = round(length / 0.55)
+        lenta = (rolik_sd * (height_g + 0.2)) + length
+        mehanizm = 2
+        profil = 2
+        perehodnik = 4
+        luver_40 = math.ceil(length / 0.2)
+        luver_40 -= luver_40 % -10
+        espander = math.ceil(length * 1.25)
+        kruchok = math.ceil(luver_40 / 2)
+        luver_12 = math.ceil(length / 0.2)
+        luver_12 -= luver_12 % -10
+        rabota = length * 1.1
+
+        # Расчёт стоимости сдвижных стенок (базовый вариант)
+        sdvig_stenki_cost = (square_sdvig_stenok * price['pvh_630'] + rolik_sd * price['rolik_sdvig'] +
+                             zamok * price['zamok_so_stropoi'] + lenta * price['lenta_F1300'] + luver_40 * price[
+                                 'luvers_40'] +
+                             espander * price['espander'] + kruchok * price['kruchok_s'] + luver_12 * price[
+                                 'luvers_12'] +
+                             rabota * price['work'] + profil * price['profil_allum'] + perehodnik * price[
+                                 'perehodnik_profilya'] +
+                             mehanizm * price['mehanizm_natyascheniya'])
+
+        sdvig_stenki_cost = sdvig_stenki_cost * 2  # добавляем вторую стенку
+        sdvig_stenki_cost = sdvig_stenki_cost * 1.8  # добавляем коэффициент
+        sdvig_stenki_cost -= sdvig_stenki_cost % 100
+
+        # Расчёт стоимости сдвижных стенок с фурнитурой клиента
+        sdvig_stenki_furnitura_cost = (square_sdvig_stenok * price['pvh_630'] +
+                                       lenta * price['lenta_F1300'] +
+                                       rabota * price['work'])
+
+        sdvig_stenki_furnitura_cost = sdvig_stenki_furnitura_cost * 2  # добавляем вторую стенку
+        sdvig_stenki_furnitura_cost = sdvig_stenki_furnitura_cost * 1.8  # добавляем коэффициент
+        sdvig_stenki_furnitura_cost -= sdvig_stenki_furnitura_cost % 100
+
+        # Расчёт стоимости сдвижных стенок с люверсами
+        sdvig_stenki_luvers_cost = (square_sdvig_stenok * price['pvh_630'] +
+                                    luver_40 * price['luvers_40'] +
+                                    luver_12 * price['luvers_12'] +
+                                    kruchok * price['kruchok_s'] +
+                                    espander * price['espander'] +
+                                    rabota * price['work'])
+
+        sdvig_stenki_luvers_cost = sdvig_stenki_luvers_cost * 2  # добавляем вторую стенку
+        sdvig_stenki_luvers_cost = sdvig_stenki_luvers_cost * 1.8  # добавляем коэффициент
+        sdvig_stenki_luvers_cost -= sdvig_stenki_luvers_cost % 100
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            sdvig_stenki_cost *= 1.2
+            sdvig_stenki_furnitura_cost *= 1.2
+            sdvig_stenki_luvers_cost *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            sdvig_stenki_cost *= (1 - discount_percent / 100)
+            sdvig_stenki_furnitura_cost *= (1 - discount_percent / 100)
+            sdvig_stenki_luvers_cost *= (1 - discount_percent / 100)
+
+        sdvig_stenki_cost -= sdvig_stenki_cost % -100
+        sdvig_stenki_furnitura_cost -= sdvig_stenki_furnitura_cost % -100
+        sdvig_stenki_luvers_cost -= sdvig_stenki_luvers_cost % -100
+
+        return sdvig_stenki_cost, sdvig_stenki_furnitura_cost, sdvig_stenki_luvers_cost
+
     # Рассчитываем площадь
     area = calculate_area(length, width, height_g, is_vorota, is_schit)
 
     msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost = calculate_additional_costs(length, width, height_p,
                                                                                           is_vorota, is_schit, price)
+
+    sdvig_stenki_cost, sdvig_stenki_furnitura_cost, sdvig_stenki_luvers_cost = calculate_sdvig_stenki_cost(length, height_g, price, is_legal_entity, discount_percent)
 
     # Площади для рекламы
     reklama_2_stenki = length * height_g * 2
@@ -620,12 +704,23 @@ def page_auto_calculator():
         "Стоимость": [vorota_cost]
     })
 
+    # Создаём таблицу с расчётом стоимости сдвижных стенок
+    sdvig_stenki_df = pd.DataFrame({
+        "Наименование": ["Сдвижные стенки новые", "Сдвижные стенки с фурнитурой клиента",
+                         "Сдвижные стенки с люверсами"],
+        "Стоимость": [sdvig_stenki_cost, sdvig_stenki_furnitura_cost, sdvig_stenki_luvers_cost]
+    })
+
     # Форматируем стоимость
     additional_costs_df['Стоимость'] = additional_costs_df['Стоимость'].apply(
         lambda x: "{:,.2f} руб".format(x).replace(",", " "))
 
     # Форматируем стоимость
     vorota_df['Стоимость'] = vorota_df['Стоимость'].apply(lambda x: "{:,.2f} руб".format(x).replace(",", " "))
+
+    # Форматируем стоимость
+    sdvig_stenki_df['Стоимость'] = sdvig_stenki_df['Стоимость'].apply(
+        lambda x: "{:,.2f} руб".format(x).replace(",", " "))
 
     # Функция для форматирования стоимости с разделением на разряды
     def format_cost(cost):
@@ -664,6 +759,13 @@ def page_auto_calculator():
     # Выводим таблицу с расчётом стоимости ворот
     st.dataframe(
         vorota_df,
+        hide_index=True,
+        use_container_width=True
+    )
+
+    # Выводим таблицу с расчётом стоимости сдвижных стенок
+    st.dataframe(
+        sdvig_stenki_df,
         hide_index=True,
         use_container_width=True
     )
