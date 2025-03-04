@@ -132,7 +132,7 @@ def page_auto_calculator():
 
     # Словарь с ценами на материалы
     price = {
-        'pvh_630': 260,
+        'pvh_630': 250,
         'pvh_650': 385,
         'pvh_750': 450,
         'pvh_900': 500,
@@ -188,8 +188,10 @@ def page_auto_calculator():
     # Ввод данных
     length = st.number_input("Введите длину (м)", value=1.0, min_value=0.01)
     width = st.number_input("Введите ширину (м)", value=1.0, min_value=0.01)
-    height_g = st.number_input("Введите высоту готовой стенки (м)", value=1.0, min_value=0.01)
     height_p = st.number_input("Введите полезную высоту (м)", value=1.0, min_value=0.01)
+    height_g = st.number_input("Введите высоту готовой стенки (м)", value=1.0, min_value=0.01)
+    height_b = st.number_input("Введите высоту борта (м)", value=1.0, min_value=0.01)
+    count_s = st.number_input("Введите количество стоек (шт)", value=1, min_value=1, step=1)
     marka = st.selectbox("Выберите марку авто", ("Газель", "Иное"), index=None, placeholder="Выбрать вариант")
 
     # Чекбоксы для ворот и щита
@@ -584,6 +586,101 @@ def page_auto_calculator():
 
         return sdvig_stenki_cost, sdvig_stenki_furnitura_cost, sdvig_stenki_luvers_cost
 
+    # Функция для расчёта стоимости каркаса
+    def calculate_karkas_cost(length, width, height_p, height_b, count_s, marka, price, is_legal_entity,
+                              discount_percent):
+        # Расчёт составляющих частей
+        s_borta_niz = (length * 2 + width) / 6
+        s_borta_niz -= s_borta_niz % -1
+        stoiki = count_s * (height_p - height_b) / 6
+        stoiki -= stoiki % -1
+        verh = (length * 2 + width * 3) / 6
+        verh -= verh % -1
+        usil_verh = length * 3 / 6
+        usil_verh -= usil_verh % -1
+        usil_bok_2 = (height_p - height_b) / 0.45
+        usil_bok_2 -= usil_bok_2 % -1
+        usil_bok = (length * 2 + width) * usil_bok_2 / 6
+        usil_bok -= usil_bok % -1
+        naborn_bort = (length * 2 + width) / 6
+        naborn_bort -= naborn_bort % -1
+        naborn_bort = naborn_bort * 4
+
+        # Расчёт стоимости каркаса с борта для Газели
+        karkas_s_borta_gaz = (s_borta_niz * price['truba_40_20_2'] +
+                              stoiki * price['truba_40_40_3'] +
+                              verh * price['truba_40_40_2'] +
+                              usil_verh * price['truba_40_20_2'] +
+                              usil_bok * price['truba_40_20_2'] +
+                              length / 0.1585 * price['work'])
+
+        # Расчёт стоимости каркаса с борта для Камаза
+        karkas_s_borta_kamaz = (s_borta_niz * price['truba_40_20_2'] +
+                                stoiki * price['truba_60_40_3'] +
+                                verh * price['truba_60_40_2'] +
+                                usil_verh * price['truba_40_40_2'] +
+                                usil_bok * price['truba_40_40_2'] +
+                                length / 0.151 * price['work'])
+
+        # Расчёт стоимости каркаса с платформы для Газели
+        karkas_s_platform_gaz = (stoiki * price['truba_40_40_3'] +
+                                 verh * price['truba_40_40_2'] +
+                                 usil_verh * price['truba_40_20_2'] +
+                                 usil_bok * price['truba_40_20_2'] +
+                                 naborn_bort * price['doska'] +
+                                 length / 0.132 * price['work'])
+
+        # Расчёт стоимости каркаса с платформы для Камаза
+        karkas_s_platform_kamaz = (stoiki * price['truba_60_40_3'] +
+                                   verh * price['truba_60_40_2'] +
+                                   usil_verh * price['truba_40_40_2'] +
+                                   usil_bok * price['truba_40_40_2'] +
+                                   naborn_bort * price['doska'] +
+                                   length / 0.1417 * price['work'])
+
+        # Расчёт стоимости каркаса под съёмную крышу
+        if marka == "Газель":
+            karkas_razborn = (karkas_s_platform_gaz * 2 + 6 * price['work'] * 2)
+        else:
+            karkas_razborn = (karkas_s_platform_kamaz * 2 + 6 * price['work'] * 2)
+
+        # Увеличиваем стоимость на 20%, если выбрано юридическое лицо
+        if is_legal_entity:
+            karkas_s_borta_gaz *= 1.2
+            karkas_s_borta_kamaz *= 1.2
+            karkas_s_platform_gaz *= 1.2
+            karkas_s_platform_kamaz *= 1.2
+            karkas_razborn *= 1.2
+
+        # Применяем скидку, если она указана
+        if discount_percent > 0:
+            karkas_s_borta_gaz *= (1 - discount_percent / 100)
+            karkas_s_borta_kamaz *= (1 - discount_percent / 100)
+            karkas_s_platform_gaz *= (1 - discount_percent / 100)
+            karkas_s_platform_kamaz *= (1 - discount_percent / 100)
+            karkas_razborn *= (1 - discount_percent / 100)
+
+        # Округляем до сотен
+        karkas_s_borta_gaz = karkas_s_borta_gaz * 2
+        karkas_s_borta_gaz -= karkas_s_borta_gaz % -100
+        karkas_s_borta_kamaz = karkas_s_borta_kamaz * 2
+        karkas_s_borta_kamaz -= karkas_s_borta_kamaz % -100
+        karkas_s_platform_gaz = karkas_s_platform_gaz * 2
+        karkas_s_platform_gaz -= karkas_s_platform_gaz % -100
+        karkas_s_platform_kamaz = karkas_s_platform_kamaz * 2
+        karkas_s_platform_kamaz -= karkas_s_platform_kamaz % -100
+        karkas_razborn -= karkas_razborn % -100
+
+        # Выбор стоимости в зависимости от марки авто
+        if marka == "Газель":
+            karkas_s_borta = karkas_s_borta_gaz
+            karkas_s_platform = karkas_s_platform_gaz
+        else:
+            karkas_s_borta = karkas_s_borta_kamaz
+            karkas_s_platform = karkas_s_platform_kamaz
+
+        return karkas_s_borta, karkas_s_platform, karkas_razborn
+
     # Рассчитываем площадь
     area = calculate_area(length, width, height_g, is_vorota, is_schit)
 
@@ -591,6 +688,10 @@ def page_auto_calculator():
                                                                                           is_vorota, is_schit, price)
 
     sdvig_stenki_cost, sdvig_stenki_furnitura_cost, sdvig_stenki_luvers_cost = calculate_sdvig_stenki_cost(length, height_g, price, is_legal_entity, discount_percent)
+
+    karkas_s_borta, karkas_s_platform, karkas_razborn = calculate_karkas_cost(length, width, height_p, height_b,
+                                                                              count_s, marka, price, is_legal_entity,
+                                                                              discount_percent)
 
     # Площади для рекламы
     reklama_2_stenki = length * height_g * 2
@@ -698,12 +799,6 @@ def page_auto_calculator():
         "Стоимость": [msk_cost, shtornik_cost, tros_cost, demontazh_tenta_cost]
     })
 
-    # Создаём таблицу с расчётом стоимости ворот
-    vorota_df = pd.DataFrame({
-        "Наименование": ["Ворота"],
-        "Стоимость": [vorota_cost]
-    })
-
     # Создаём таблицу с расчётом стоимости сдвижных стенок
     sdvig_stenki_df = pd.DataFrame({
         "Наименование": ["Сдвижные стенки новые", "Сдвижные стенки с фурнитурой клиента",
@@ -711,15 +806,23 @@ def page_auto_calculator():
         "Стоимость": [sdvig_stenki_cost, sdvig_stenki_furnitura_cost, sdvig_stenki_luvers_cost]
     })
 
+    # Создаём таблицу с расчётом стоимости каркаса
+    karkas_df = pd.DataFrame({
+        "Наименование": ["Каркас с борта (цельносварной)", "Каркас с платформы (цельносварной)",
+                         "Каркас под съёмную крышу", "Ворота"],
+        "Стоимость": [karkas_s_borta, karkas_s_platform, karkas_razborn, vorota_cost]
+    })
+
     # Форматируем стоимость
     additional_costs_df['Стоимость'] = additional_costs_df['Стоимость'].apply(
         lambda x: "{:,.2f} руб".format(x).replace(",", " "))
 
     # Форматируем стоимость
-    vorota_df['Стоимость'] = vorota_df['Стоимость'].apply(lambda x: "{:,.2f} руб".format(x).replace(",", " "))
+    sdvig_stenki_df['Стоимость'] = sdvig_stenki_df['Стоимость'].apply(
+        lambda x: "{:,.2f} руб".format(x).replace(",", " "))
 
     # Форматируем стоимость
-    sdvig_stenki_df['Стоимость'] = sdvig_stenki_df['Стоимость'].apply(
+    karkas_df['Стоимость'] = karkas_df['Стоимость'].apply(
         lambda x: "{:,.2f} руб".format(x).replace(",", " "))
 
     # Функция для форматирования стоимости с разделением на разряды
@@ -756,16 +859,16 @@ def page_auto_calculator():
         use_container_width=True
     )
 
-    # Выводим таблицу с расчётом стоимости ворот
+    # Выводим таблицу с расчётом стоимости сдвижных стенок
     st.dataframe(
-        vorota_df,
+        sdvig_stenki_df,
         hide_index=True,
         use_container_width=True
     )
 
-    # Выводим таблицу с расчётом стоимости сдвижных стенок
+    # Выводим таблицу с расчётом стоимости каркаса
     st.dataframe(
-        sdvig_stenki_df,
+        karkas_df,
         hide_index=True,
         use_container_width=True
     )
