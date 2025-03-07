@@ -128,7 +128,7 @@ def page_auto_calculator():
     st.title("ОБНОВИТЬ ЦЕНЫ НА ФАНЕРУ")
 
     # Ваш код для другого калькулятора
-    st.write("Цены актуальны на 05.03.2025")
+    st.write("Цены актуальны на 07.03.2025")
 
     # Словарь с ценами на материалы
     price = {
@@ -136,9 +136,9 @@ def page_auto_calculator():
         'pvh_650': 385,
         'pvh_750': 450,
         'pvh_900': 500,
-        'fanera_21_2': 5500,
-        'fanera_21_3': 9400,
-        'fanera_18': 4700,
+        'fanera_21_2': 3515,
+        'fanera_21_3': 6900,
+        'fanera_18': 2870,
         'petlya_gaz': 650,
         'petlya_kamaz': 850,
         'zamki_gaz': 3100,
