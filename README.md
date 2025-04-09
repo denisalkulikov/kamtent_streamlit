@@ -78,7 +78,7 @@
 ├── main.py                # Основной скрипт
 ├── README.md              # Документация
 ├── requirements.txt       # Зависимости
-├── assets/                # Ресурсы
+├── images/                # Ресурсы
 │   └── logo.png           # Логотип
 └── screenshots/           # Скриншоты UI
     ├── polog.png          # Скриншот пологов
