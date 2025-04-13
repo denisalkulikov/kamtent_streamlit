@@ -77,13 +77,12 @@
 .
 ├── main.py                # Основной скрипт
 ├── README.md              # Документация
-├── requirements.txt       # Зависимости
 ├── images/                # Ресурсы
 │   └── logo.png           # Логотип
 └── screenshots/           # Скриншоты UI
-    ├── polog.png          # Скриншот пологов
-    ├── auto.png           # Скриншот авто
-    └── results.png        # Пример вывода
+    ├── polog_calculator.png          # Скриншот пологов
+    ├── auto_calculator.png           # Скриншот авто
+    └── results_tables.png        # Пример вывода
 ```
 
 ---
