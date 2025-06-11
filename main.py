@@ -128,14 +128,14 @@ def page_auto_calculator():
     st.title("Калькулятор продукции на авто")
 
     # Ваш код для другого калькулятора
-    st.write("Цены актуальны на 24.04.2025")
+    st.write("Цены актуальны на 11.06.2025")
 
     # Словарь с ценами на материалы
     price = {
         'pvh_630': 250,
         'pvh_650': 300,
-        'pvh_750': 450,
-        'pvh_900': 500,
+        'pvh_750': 300,
+        'pvh_900': 350,
         'fanera_21_2': 3515,
         'fanera_21_3': 6900,
         'fanera_18': 2870,
@@ -534,7 +534,7 @@ def page_auto_calculator():
         rabota = length * 1.1
 
         # Расчёт стоимости сдвижных стенок (базовый вариант)
-        sdvig_stenki_cost = (square_sdvig_stenok * price['pvh_630'] + rolik_sd * price['rolik_sdvig'] +
+        sdvig_stenki_cost = (square_sdvig_stenok * price['pvh_900'] + rolik_sd * price['rolik_sdvig'] +
                              zamok * price['zamok_so_stropoi'] + lenta * price['lenta_F1300'] + luver_40 * price[
                                  'luvers_40'] +
                              espander * price['espander'] + kruchok * price['kruchok_s'] + luver_12 * price[
@@ -548,7 +548,7 @@ def page_auto_calculator():
         sdvig_stenki_cost -= sdvig_stenki_cost % 100
 
         # Расчёт стоимости сдвижных стенок с фурнитурой клиента
-        sdvig_stenki_furnitura_cost = (square_sdvig_stenok * price['pvh_630'] +
+        sdvig_stenki_furnitura_cost = (square_sdvig_stenok * price['pvh_900'] +
                                        lenta * price['lenta_F1300'] +
                                        rabota * price['work'])
 
@@ -557,7 +557,7 @@ def page_auto_calculator():
         sdvig_stenki_furnitura_cost -= sdvig_stenki_furnitura_cost % 100
 
         # Расчёт стоимости сдвижных стенок с люверсами
-        sdvig_stenki_luvers_cost = (square_sdvig_stenok * price['pvh_630'] +
+        sdvig_stenki_luvers_cost = (square_sdvig_stenok * price['pvh_900'] +
                                     luver_40 * price['luvers_40'] +
                                     luver_12 * price['luvers_12'] +
                                     kruchok * price['kruchok_s'] +
