@@ -11,7 +11,17 @@ class PriceManager:
         self.polog_prices = st.secrets.get("prices", {}).get("polog", {})
         self.auto_prices = st.secrets.get("prices", {}).get("auto", {})
         self.polog_coeffs = st.secrets.get("polog_coefficients", {})
-        self.auto_coeffs = st.secrets.get("auto_coefficients", {})
+        self.typical_coeffs = st.secrets.get("typical_coefficients", {})
+        self.chulok_coeffs = st.secrets.get("chulok_coefficients", {})
+        self.sdvizhnoy_coeffs = st.secrets.get("sdvizhnoy_coefficients", {})
+        self.reklama_coeffs = st.secrets.get("reklama_coefficients", {})
+        self.msk_coeffs = st.secrets.get("msk_coefficients", {})
+        self.shtornik_coeffs = st.secrets.get("shtornik_coefficients", {})
+        self.tros_coeffs = st.secrets.get("tros_coefficients", {})
+        self.demontazh_coeffs = st.secrets.get("demontazh_coefficients", {})
+        self.vorota_coeffs = st.secrets.get("vorota_coefficients", {})
+        self.sdvig_coeffs = st.secrets.get("sdvig_coefficients", {})
+        self.karkas_coeffs = st.secrets.get("karkas_coefficients", {})
 
     def get_polog_price(self, material: str) -> float:
         return self.polog_prices.get(material, 0)
@@ -22,8 +32,38 @@ class PriceManager:
     def get_polog_coeff(self, name: str) -> Any:
         return self.polog_coeffs[name]
 
-    def get_auto_coeff(self, category: str, name: str) -> Any:
-        return self.auto_coeffs[category][name]
+    def get_typical_coeff(self, name: str) -> Any:
+        return self.typical_coeffs[name]
+
+    def get_chulok_coeff(self, name: str) -> Any:
+        return self.chulok_coeffs[name]
+
+    def get_sdvizhnoy_coeff(self, name: str) -> Any:
+        return self.sdvizhnoy_coeffs[name]
+
+    def get_reklama_coeff(self, name: str) -> Any:
+        return self.reklama_coeffs[name]
+
+    def get_msk_coeff(self, name: str) -> Any:
+        return self.msk_coeffs[name]
+
+    def get_shtornik_coeff(self, name: str) -> Any:
+        return self.shtornik_coeffs[name]
+
+    def get_tros_coeff(self, name: str) -> Any:
+        return self.tros_coeffs[name]
+
+    def get_demontazh_coeff(self, name: str) -> Any:
+        return self.demontazh_coeffs[name]
+
+    def get_vorota_coeff(self, name: str) -> Any:
+        return self.vorota_coeffs[name]
+
+    def get_sdvig_coeff(self, name: str) -> Any:
+        return self.sdvig_coeffs[name]
+
+    def get_karkas_coeff(self, name: str) -> Any:
+        return self.karkas_coeffs[name]
 
 
 class AuthManager:
@@ -98,16 +138,16 @@ def page_polog_calculator(price_manager: PriceManager):
                 (luvers_pol * price_manager.get_polog_price('luver')) +
                 (sq_pol * work_percentage * price_manager.get_polog_price('work'))) * multiplier
 
-        # Скидка применяется ДО округления
-        if discount_percent > 0:
-            cost *= (1 - discount_percent / 100)
-
         # Округление до сотен вверх
         cost -= cost % -100
 
         # Наценка юрлица
         if is_legal_entity:
             cost = cost * (1 + legal_multiplier)
+
+        # Скидка применяется ПОСЛЕ наценки юрлица
+        if discount_percent > 0:
+            cost *= (1 - discount_percent / 100)
 
         return int(cost)
 
@@ -159,19 +199,6 @@ def page_auto_calculator(price_manager: PriceManager):
     if apply_discount:
         discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0, max_value=100, step=1)
 
-    # Получаем коэффициенты из secrets
-    typical_coeffs = price_manager.get_auto_coeff("typical", "typical")
-    chulok_coeffs = price_manager.get_auto_coeff("chulok", "chulok")
-    sdvizhnoy_coeffs = price_manager.get_auto_coeff("sdvizhnoy", "sdvizhnoy")
-    reklama_coeffs = price_manager.get_auto_coeff("reklama", "reklama")
-    msk_coeffs = price_manager.get_auto_coeff("msk", "msk")
-    shtornik_coeffs = price_manager.get_auto_coeff("shtornik", "shtornik")
-    tros_coeffs = price_manager.get_auto_coeff("tros", "tros")
-    demontazh_coeffs = price_manager.get_auto_coeff("demontazh", "demontazh")
-    vorota_coeffs = price_manager.get_auto_coeff("vorota", "vorota")
-    sdvig_coeffs = price_manager.get_auto_coeff("sdvig", "sdvig")
-    karkas_coeffs = price_manager.get_auto_coeff("karkas", "karkas")
-
     # Функция для расчёта площади изделия
     def calculate_area(length, width, height_g, is_vorota, is_schit):
         if is_vorota and is_schit:
@@ -183,63 +210,61 @@ def page_auto_calculator(price_manager: PriceManager):
 
     # Функция для расчёта стоимости ткани (типовой тент)
     def calculate_typical_cost(material_price, area, length_val):
-        if length_val < typical_coeffs["length_small"]:
-            cost = material_price * typical_coeffs["coefficient_small"]
-        elif length_val > typical_coeffs["length_large"]:
-            cost = material_price * typical_coeffs["coefficient_large"]
+        typical = price_manager.get_typical_coeff
+
+        if length_val < typical("length_small"):
+            cost = material_price * typical("coefficient_small")
+        elif length_val > typical("length_large"):
+            cost = material_price * typical("coefficient_large")
         else:
-            cost = material_price * typical_coeffs["coefficient_medium"]
+            cost = material_price * typical("coefficient_medium")
 
-        # Округление до десятков
-        cost -= cost % -typical_coeffs["rounding_step"]
-
-        # Умножаем на площадь
+        cost -= cost % -typical("rounding_step")
         cost = cost * area
 
-        # Скидка ДО наценки юрлица
+        if is_legal_entity:
+            cost *= typical("legal_multiplier")
+
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
-        # Наценка юрлица
-        if is_legal_entity:
-            cost *= typical_coeffs["legal_multiplier"]
-
-        # Финальное округление до сотен вверх
-        cost -= cost % -typical_coeffs["rounding_final"]
+        cost -= cost % -typical("rounding_final")
         return cost
 
     # Функция для расчёта стоимости "Тент (чулок)"
     def calculate_chulok_cost(material_price, area, length_val):
+        chulok = price_manager.get_chulok_coeff
+
         fabric_cost = material_price * area
         fabric_cost -= fabric_cost % -100
 
-        babochka_count = ((round(length_val / chulok_coeffs["babochka_step"])) - chulok_coeffs[
-            "babochka_base"]) * 3 + 6 * 5
+        babochka_count = ((round(length_val / chulok("babochka_step"))) - chulok("babochka_base")) * 3 + 6 * 5
         babochka_cost = babochka_count * price_manager.get_auto_price('babochka')
 
-        work_cost = price_manager.get_auto_price('work') * (length_val / chulok_coeffs["work_step"])
+        work_cost = price_manager.get_auto_price('work') * (length_val / chulok("work_step"))
 
-        total_cost = (fabric_cost + babochka_cost + work_cost) * chulok_coeffs["multiplier"]
-
-        # Скидка ДО наценки юрлица
-        if discount_percent > 0:
-            total_cost *= (1 - discount_percent / 100)
+        total_cost = (fabric_cost + babochka_cost + work_cost) * chulok("multiplier")
 
         if is_legal_entity:
-            total_cost *= chulok_coeffs["legal_multiplier"]
+            total_cost *= chulok("legal_multiplier")
+
+        if discount_percent > 0:
+            total_cost *= (1 - discount_percent / 100)
 
         total_cost -= total_cost % -100
         return total_cost
 
     # Функция для расчёта стоимости "Тент сдвижной крыши"
     def calculate_sdvizhnoy_krysha_cost(material_price, length_val, width_val):
-        s_krysha = (length_val + sdvizhnoy_coeffs["add_length"]) * (width_val + 0.6)
+        sdvizhnoy = price_manager.get_sdvizhnoy_coeff
+
+        s_krysha = (length_val + sdvizhnoy("add_length")) * (width_val + 0.6)
         p_shnur = length_val * 2 + 2
 
-        if math.ceil((length_val - 1) / sdvizhnoy_coeffs["plastin_step"] * 2) % 2 == 0:
-            count_plastin_650 = math.ceil((length_val - 1) / sdvizhnoy_coeffs["plastin_step"] * 2)
+        if math.ceil((length_val - 1) / sdvizhnoy("plastin_step") * 2) % 2 == 0:
+            count_plastin_650 = math.ceil((length_val - 1) / sdvizhnoy("plastin_step") * 2)
         else:
-            count_plastin_650 = math.ceil((length_val - 1) / sdvizhnoy_coeffs["plastin_step"] * 2) + 1
+            count_plastin_650 = math.ceil((length_val - 1) / sdvizhnoy("plastin_step") * 2) + 1
 
         count_remeshki = ((round(count_plastin_650 / 2 + 1)) - 4) * 3 + 20
         p_usilitel = (round(count_plastin_650 / 2 + 1) * width_val * 0.1) + ((length_val * 2 + width_val * 2) * 0.15)
@@ -249,56 +274,58 @@ def page_auto_calculator(price_manager: PriceManager):
                       count_remeshki * price_manager.get_auto_price('remeshok') + p_usilitel * material_price +
                       count_work * price_manager.get_auto_price('work'))
 
-        # Скидка ДО наценки юрлица
+        if is_legal_entity:
+            total_cost *= sdvizhnoy("legal_multiplier")
+
         if discount_percent > 0:
             total_cost *= (1 - discount_percent / 100)
 
-        if is_legal_entity:
-            total_cost *= sdvizhnoy_coeffs["legal_multiplier"]
-
-        total_cost = total_cost * sdvizhnoy_coeffs["multiplier"]
+        total_cost = total_cost * sdvizhnoy("multiplier")
         total_cost -= total_cost % -100
         return total_cost
 
     # Функция для расчёта стоимости тента с рекламой
     def calculate_reklama_cost(reklama_area, total_area, material_price, length_val):
+        reklama = price_manager.get_reklama_coeff
+
         reklama_cost = reklama_area * price_manager.get_auto_price('reklama')
         fabric_cost = (total_area - reklama_area) * material_price
 
-        work_cost = (length_val / reklama_coeffs["work_step"]) * price_manager.get_auto_price('work')
+        work_cost = (length_val / reklama("work_step")) * price_manager.get_auto_price('work')
 
-        total_cost = (reklama_cost + fabric_cost + work_cost) * reklama_coeffs["multiplier"]
-
-        # Скидка ДО наценки юрлица
-        if discount_percent > 0:
-            total_cost *= (1 - discount_percent / 100)
+        total_cost = (reklama_cost + fabric_cost + work_cost) * reklama("multiplier")
 
         if is_legal_entity:
-            total_cost *= reklama_coeffs["legal_multiplier"]
+            total_cost *= reklama("legal_multiplier")
+
+        if discount_percent > 0:
+            total_cost *= (1 - discount_percent / 100)
 
         total_cost -= total_cost % -100
         return total_cost
 
     # Функция для расчёта стоимости МСК (пластины)
     def calculate_msk_cost(length_val):
-        if math.ceil(length_val / msk_coeffs["kronshtein_step"] * 2) % 2 == 0:
-            kronshtein_count = math.ceil(length_val / msk_coeffs["kronshtein_step"] * 2)
-        else:
-            kronshtein_count = math.ceil(length_val / msk_coeffs["kronshtein_step"] * 2) + 1
+        msk = price_manager.get_msk_coeff
 
-        truba_30_30_count = (kronshtein_count / 2 * msk_coeffs["truba_coeff"]) / msk_coeffs["truba_divider"]
+        if math.ceil(length_val / msk("kronshtein_step") * 2) % 2 == 0:
+            kronshtein_count = math.ceil(length_val / msk("kronshtein_step") * 2)
+        else:
+            kronshtein_count = math.ceil(length_val / msk("kronshtein_step") * 2) + 1
+
+        truba_30_30_count = (kronshtein_count / 2 * msk("truba_coeff")) / msk("truba_divider")
         truba_30_30_count -= truba_30_30_count % -1
 
         truba_60_40_count = length_val / 6 * 2
         truba_60_40_count -= truba_60_40_count % -1
 
-        shveler_count = length_val / msk_coeffs["shveler_step"] * 2
+        shveler_count = length_val / msk("shveler_step") * 2
         shveler_count -= shveler_count % -1
 
-        if math.ceil((length_val - 1) / msk_coeffs["plastin_step"] * 2) % 2 == 0:
-            count_plastin_650 = math.ceil((length_val - 1) / msk_coeffs["plastin_step"] * 2)
+        if math.ceil((length_val - 1) / msk("plastin_step") * 2) % 2 == 0:
+            count_plastin_650 = math.ceil((length_val - 1) / msk("plastin_step") * 2)
         else:
-            count_plastin_650 = math.ceil((length_val - 1) / msk_coeffs["plastin_step"] * 2) + 1
+            count_plastin_650 = math.ceil((length_val - 1) / msk("plastin_step") * 2) + 1
         count_plastin_black = count_plastin_650 + 2
 
         msk_cost = int((kronshtein_count * price_manager.get_auto_price('kronshtein') +
@@ -314,84 +341,87 @@ def page_auto_calculator(price_manager: PriceManager):
                         count_plastin_black * price_manager.get_auto_price('plastina_black') +
                         2 * price_manager.get_auto_price('fiksator') +
                         2 * price_manager.get_auto_price('amortizator') +
-                        msk_coeffs["work_hours"] * price_manager.get_auto_price('work') +
-                        length_val * msk_coeffs["work_per_meter"] * price_manager.get_auto_price('work')) * msk_coeffs[
-                           "multiplier"])
-
-        # Скидка
-        if discount_percent > 0:
-            msk_cost *= (1 - discount_percent / 100)
+                        msk("work_hours") * price_manager.get_auto_price('work') +
+                        length_val * msk("work_per_meter") * price_manager.get_auto_price('work')) * msk("multiplier"))
 
         if is_legal_entity:
-            msk_cost *= msk_coeffs["legal_multiplier"]
+            msk_cost *= msk("legal_multiplier")
+
+        if discount_percent > 0:
+            msk_cost *= (1 - discount_percent / 100)
 
         msk_cost -= msk_cost % -100
         return msk_cost
 
     # Функция для расчёта стоимости Шторного механизма
     def calculate_shtornik_cost(length_val):
-        shtorn_profile_count = length_val / shtornik_coeffs["profile_divider"] * 2
+        shtornik = price_manager.get_shtornik_coeff
+
+        shtorn_profile_count = length_val / shtornik("profile_divider") * 2
         shtorn_profile_count -= shtorn_profile_count % -1
 
-        shtorn_work_count = length_val * shtornik_coeffs["work_coeff"]
+        shtorn_work_count = length_val * shtornik("work_coeff")
         shtorn_work_count -= shtorn_work_count % -1
 
         shtornik_cost = int((shtorn_profile_count * price_manager.get_auto_price('shtorn_profil') +
-                             shtorn_work_count * price_manager.get_auto_price('work')) * shtornik_coeffs["multiplier"])
-
-        # Скидка
-        if discount_percent > 0:
-            shtornik_cost *= (1 - discount_percent / 100)
+                             shtorn_work_count * price_manager.get_auto_price('work')) * shtornik("multiplier"))
 
         if is_legal_entity:
-            shtornik_cost *= shtornik_coeffs["legal_multiplier"]
+            shtornik_cost *= shtornik("legal_multiplier")
+
+        if discount_percent > 0:
+            shtornik_cost *= (1 - discount_percent / 100)
 
         shtornik_cost -= shtornik_cost % -100
         return shtornik_cost
 
     # Функция для расчёта стоимости Троса
     def calculate_tros_cost(length_val, width_val, height_p_val, is_vorota, is_schit):
+        tros = price_manager.get_tros_coeff
+
         perimetr_total = length_val * 2 + width_val * 2 + height_p_val * 4
         perimetr_half = length_val * 2 + width_val * 2 + height_p_val * 2
         perimetr_min = length_val * 2 + width_val * 2
 
         if is_vorota and is_schit:
-            tros_cost = int(perimetr_total * price_manager.get_auto_price('tros') * tros_coeffs["multiplier"])
+            tros_cost = int(perimetr_total * price_manager.get_auto_price('tros') * tros("multiplier"))
         elif not is_vorota and not is_schit:
-            tros_cost = int(perimetr_min * price_manager.get_auto_price('tros') * tros_coeffs["multiplier"])
+            tros_cost = int(perimetr_min * price_manager.get_auto_price('tros') * tros("multiplier"))
         else:
-            tros_cost = int(perimetr_half * price_manager.get_auto_price('tros') * tros_coeffs["multiplier"])
-
-        # Скидка
-        if discount_percent > 0:
-            tros_cost *= (1 - discount_percent / 100)
+            tros_cost = int(perimetr_half * price_manager.get_auto_price('tros') * tros("multiplier"))
 
         if is_legal_entity:
-            tros_cost *= tros_coeffs["legal_multiplier"]
+            tros_cost *= tros("legal_multiplier")
+
+        if discount_percent > 0:
+            tros_cost *= (1 - discount_percent / 100)
 
         tros_cost -= tros_cost % -100
         return tros_cost
 
     # Функция для расчёта стоимости Демонтажа тента
     def calculate_demontazh_cost(length_val):
-        demontazh_cost = int(length_val * demontazh_coeffs["multiplier"] * price_manager.get_auto_price('work'))
+        demontazh = price_manager.get_demontazh_coeff
 
-        # Скидка
-        if discount_percent > 0:
-            demontazh_cost *= (1 - discount_percent / 100)
+        demontazh_cost = int(length_val * demontazh("multiplier") * price_manager.get_auto_price('work'))
 
         if is_legal_entity:
-            demontazh_cost *= demontazh_coeffs["legal_multiplier"]
+            demontazh_cost *= demontazh("legal_multiplier")
+
+        if discount_percent > 0:
+            demontazh_cost *= (1 - discount_percent / 100)
 
         demontazh_cost -= demontazh_cost % -100
         return demontazh_cost
 
     # Функция для расчёта стоимости ворот
     def calculate_vorota_cost(width_val, height_g_val, marka_val):
-        ramka_vorot = (width_val * 2 + height_g_val * 2) / vorota_coeffs["ramka_divider"]
+        vorota = price_manager.get_vorota_coeff
+
+        ramka_vorot = (width_val * 2 + height_g_val * 2) / vorota("ramka_divider")
         ramka_vorot -= ramka_vorot % -1
 
-        zapory_count = width_val * 2 / vorota_coeffs["zapory_divider"]
+        zapory_count = width_val * 2 / vorota("zapory_divider")
         zapory_count -= zapory_count % -1
 
         vorota_gazel = int((price_manager.get_auto_price('fanera_18') * 2 +
@@ -400,7 +430,7 @@ def page_auto_calculator(price_manager: PriceManager):
                             (width_val * 2 + height_g_val * 3) * price_manager.get_auto_price('uplotnitel_18') +
                             ramka_vorot * price_manager.get_auto_price('truba_60_40_3') +
                             zapory_count * price_manager.get_auto_price('du_15') +
-                            vorota_coeffs["work_hours"] * price_manager.get_auto_price('work')) * 2)
+                            vorota("work_hours") * price_manager.get_auto_price('work')) * 2)
         vorota_gazel -= vorota_gazel % -100
 
         vorota_kamaz = int((price_manager.get_auto_price('fanera_21_2') * 2 +
@@ -409,7 +439,7 @@ def page_auto_calculator(price_manager: PriceManager):
                             (width_val * 2 + height_g_val * 3) * price_manager.get_auto_price('uplotnitel_21') +
                             ramka_vorot * price_manager.get_auto_price('truba_60_40_3') +
                             zapory_count * price_manager.get_auto_price('du_15') +
-                            vorota_coeffs["work_hours"] * price_manager.get_auto_price('work')) * 2)
+                            vorota("work_hours") * price_manager.get_auto_price('work')) * 2)
         vorota_kamaz -= vorota_kamaz % -100
 
         vorota_other = int((price_manager.get_auto_price('fanera_21_3') * 2 +
@@ -418,52 +448,52 @@ def page_auto_calculator(price_manager: PriceManager):
                             (width_val * 2 + height_g_val * 3) * price_manager.get_auto_price('uplotnitel_21') +
                             ramka_vorot * price_manager.get_auto_price('truba_60_40_3') +
                             zapory_count * price_manager.get_auto_price('du_15') +
-                            vorota_coeffs["work_hours"] * price_manager.get_auto_price('work')) * 2)
+                            vorota("work_hours") * price_manager.get_auto_price('work')) * 2)
         vorota_other -= vorota_other % -100
 
         if marka_val == "Газель":
             vorota_cost = vorota_gazel
-        elif marka_val == "Иное" and height_g_val > vorota_coeffs["height_threshold"]:
+        elif marka_val == "Иное" and height_g_val > vorota("height_threshold"):
             vorota_cost = vorota_other
-        elif marka_val == "Иное" and height_g_val <= vorota_coeffs["height_threshold"]:
+        elif marka_val == "Иное" and height_g_val <= vorota("height_threshold"):
             vorota_cost = vorota_kamaz
         else:
             vorota_cost = 0
 
-        # Скидка
+        if is_legal_entity:
+            vorota_cost *= vorota("legal_multiplier")
+
         if discount_percent > 0:
             vorota_cost *= (1 - discount_percent / 100)
-
-        if is_legal_entity:
-            vorota_cost *= vorota_coeffs["legal_multiplier"]
 
         vorota_cost -= vorota_cost % -100
         return vorota_cost
 
     # Функция для расчёта сдвижных стенок
     def calculate_sdvig_stenki_cost(length_val, height_g_val):
-        square_sdvig_stenok = (length_val + sdvig_coeffs["add_length"]) * height_g_val + (
-                    length_val + sdvig_coeffs["add_length"])
+        sdvig = price_manager.get_sdvig_coeff
 
-        rolik_sd = round(length_val / sdvig_coeffs["rolik_step"])
-        zamok = round(length_val / sdvig_coeffs["rolik_step"])
+        square_sdvig_stenok = (length_val + sdvig("add_length")) * height_g_val + (length_val + sdvig("add_length"))
 
-        lenta = (rolik_sd * (height_g_val + sdvig_coeffs["lenta_add"])) + length_val
+        rolik_sd = round(length_val / sdvig("rolik_step"))
+        zamok = round(length_val / sdvig("rolik_step"))
+
+        lenta = (rolik_sd * (height_g_val + sdvig("lenta_add"))) + length_val
 
         mehanizm = 2
         profil = 2
         perehodnik = 4
 
-        luver_40 = math.ceil(length_val / sdvig_coeffs["luver_step"])
-        luver_40 -= luver_40 % -sdvig_coeffs["luver_rounding"]
+        luver_40 = math.ceil(length_val / sdvig("luver_step"))
+        luver_40 -= luver_40 % -sdvig("luver_rounding")
 
-        espander = math.ceil(length_val * sdvig_coeffs["espander_multiplier"])
+        espander = math.ceil(length_val * sdvig("espander_multiplier"))
         kruchok = math.ceil(luver_40 / 2)
 
-        luver_12 = math.ceil(length_val / sdvig_coeffs["luver_step"])
-        luver_12 -= luver_12 % -sdvig_coeffs["luver_rounding"]
+        luver_12 = math.ceil(length_val / sdvig("luver_step"))
+        luver_12 -= luver_12 % -sdvig("luver_rounding")
 
-        rabota = length_val * sdvig_coeffs["work_multiplier"]
+        rabota = length_val * sdvig("work_multiplier")
 
         sdvig_stenki_cost = (square_sdvig_stenok * price_manager.get_auto_price('pvh_900') +
                              rolik_sd * price_manager.get_auto_price('rolik_sdvig') +
@@ -478,16 +508,16 @@ def page_auto_calculator(price_manager: PriceManager):
                              perehodnik * price_manager.get_auto_price('perehodnik_profilya') +
                              mehanizm * price_manager.get_auto_price('mehanizm_natyascheniya'))
 
-        sdvig_stenki_cost = sdvig_stenki_cost * sdvig_coeffs["walls_multiplier"]
-        sdvig_stenki_cost = sdvig_stenki_cost * sdvig_coeffs["final_multiplier"]
+        sdvig_stenki_cost = sdvig_stenki_cost * sdvig("walls_multiplier")
+        sdvig_stenki_cost = sdvig_stenki_cost * sdvig("final_multiplier")
         sdvig_stenki_cost -= sdvig_stenki_cost % 100
 
         sdvig_stenki_furnitura_cost = (square_sdvig_stenok * price_manager.get_auto_price('pvh_900') +
                                        lenta * price_manager.get_auto_price('lenta_F1300') +
                                        rabota * price_manager.get_auto_price('work'))
 
-        sdvig_stenki_furnitura_cost = sdvig_stenki_furnitura_cost * sdvig_coeffs["walls_multiplier"]
-        sdvig_stenki_furnitura_cost = sdvig_stenki_furnitura_cost * sdvig_coeffs["final_multiplier"]
+        sdvig_stenki_furnitura_cost = sdvig_stenki_furnitura_cost * sdvig("walls_multiplier")
+        sdvig_stenki_furnitura_cost = sdvig_stenki_furnitura_cost * sdvig("final_multiplier")
         sdvig_stenki_furnitura_cost -= sdvig_stenki_furnitura_cost % 100
 
         sdvig_stenki_luvers_cost = (square_sdvig_stenok * price_manager.get_auto_price('pvh_900') +
@@ -497,20 +527,19 @@ def page_auto_calculator(price_manager: PriceManager):
                                     espander * price_manager.get_auto_price('espander') +
                                     rabota * price_manager.get_auto_price('work'))
 
-        sdvig_stenki_luvers_cost = sdvig_stenki_luvers_cost * sdvig_coeffs["walls_multiplier"]
-        sdvig_stenki_luvers_cost = sdvig_stenki_luvers_cost * sdvig_coeffs["final_multiplier"]
+        sdvig_stenki_luvers_cost = sdvig_stenki_luvers_cost * sdvig("walls_multiplier")
+        sdvig_stenki_luvers_cost = sdvig_stenki_luvers_cost * sdvig("final_multiplier")
         sdvig_stenki_luvers_cost -= sdvig_stenki_luvers_cost % 100
 
-        # Скидка
+        if is_legal_entity:
+            sdvig_stenki_cost *= sdvig("legal_multiplier")
+            sdvig_stenki_furnitura_cost *= sdvig("legal_multiplier")
+            sdvig_stenki_luvers_cost *= sdvig("legal_multiplier")
+
         if discount_percent > 0:
             sdvig_stenki_cost *= (1 - discount_percent / 100)
             sdvig_stenki_furnitura_cost *= (1 - discount_percent / 100)
             sdvig_stenki_luvers_cost *= (1 - discount_percent / 100)
-
-        if is_legal_entity:
-            sdvig_stenki_cost *= sdvig_coeffs["legal_multiplier"]
-            sdvig_stenki_furnitura_cost *= sdvig_coeffs["legal_multiplier"]
-            sdvig_stenki_luvers_cost *= sdvig_coeffs["legal_multiplier"]
 
         sdvig_stenki_cost -= sdvig_stenki_cost % -100
         sdvig_stenki_furnitura_cost -= sdvig_stenki_furnitura_cost % -100
@@ -520,65 +549,71 @@ def page_auto_calculator(price_manager: PriceManager):
 
     # Функция для расчёта стоимости каркаса
     def calculate_karkas_cost(length_val, width_val, height_p_val, height_b_val, count_s_val, marka_val):
-        s_borta_niz = (length_val * 2 + width_val) / karkas_coeffs["borta_divider"]
+        karkas = price_manager.get_karkas_coeff
+
+        s_borta_niz = (length_val * 2 + width_val) / karkas("borta_divider")
         s_borta_niz -= s_borta_niz % -1
 
-        stoiki = count_s_val * (height_p_val - height_b_val) / karkas_coeffs["stoiki_divider"]
+        stoiki = count_s_val * (height_p_val - height_b_val) / karkas("stoiki_divider")
         stoiki -= stoiki % -1
 
-        verh = (length_val * 2 + width_val * 3) / karkas_coeffs["verh_divider"]
+        verh = (length_val * 2 + width_val * 3) / karkas("verh_divider")
         verh -= verh % -1
 
-        usil_verh = length_val * 3 / karkas_coeffs["usil_verh_divider"]
+        usil_verh = length_val * 3 / karkas("usil_verh_divider")
         usil_verh -= usil_verh % -1
 
-        usil_bok_2 = (height_p_val - height_b_val) / karkas_coeffs["usil_bok_step"]
+        usil_bok_2 = (height_p_val - height_b_val) / karkas("usil_bok_step")
         usil_bok_2 -= usil_bok_2 % -1
-        usil_bok = (length_val * 2 + width_val) * usil_bok_2 / karkas_coeffs["borta_divider"]
+        usil_bok = (length_val * 2 + width_val) * usil_bok_2 / karkas("borta_divider")
         usil_bok -= usil_bok % -1
 
-        naborn_bort = (length_val * 2 + width_val) / karkas_coeffs["naborn_bort_divider"]
+        naborn_bort = (length_val * 2 + width_val) / karkas("naborn_bort_divider")
         naborn_bort -= naborn_bort % -1
-        naborn_bort = naborn_bort * karkas_coeffs["naborn_bort_multiplier"]
+        naborn_bort = naborn_bort * karkas("naborn_bort_multiplier")
 
         karkas_s_borta_gaz = (s_borta_niz * price_manager.get_auto_price('truba_40_20_2') +
                               stoiki * price_manager.get_auto_price('truba_40_40_3') +
                               verh * price_manager.get_auto_price('truba_40_40_2') +
                               usil_verh * price_manager.get_auto_price('truba_40_20_2') +
                               usil_bok * price_manager.get_auto_price('truba_40_20_2') +
-                              length_val / karkas_coeffs["gaz_work_rate"] * price_manager.get_auto_price('work'))
+                              length_val / karkas("gaz_work_rate") * price_manager.get_auto_price('work'))
 
         karkas_s_borta_kamaz = (s_borta_niz * price_manager.get_auto_price('truba_40_20_2') +
                                 stoiki * price_manager.get_auto_price('truba_60_40_3') +
                                 verh * price_manager.get_auto_price('truba_60_40_2') +
                                 usil_verh * price_manager.get_auto_price('truba_40_40_2') +
                                 usil_bok * price_manager.get_auto_price('truba_40_40_2') +
-                                length_val / karkas_coeffs["kamaz_work_rate"] * price_manager.get_auto_price('work'))
+                                length_val / karkas("kamaz_work_rate") * price_manager.get_auto_price('work'))
 
         karkas_s_platform_gaz = (stoiki * price_manager.get_auto_price('truba_40_40_3') +
                                  verh * price_manager.get_auto_price('truba_40_40_2') +
                                  usil_verh * price_manager.get_auto_price('truba_40_20_2') +
                                  usil_bok * price_manager.get_auto_price('truba_40_20_2') +
                                  naborn_bort * price_manager.get_auto_price('doska') +
-                                 length_val / karkas_coeffs["platform_gaz_rate"] * price_manager.get_auto_price('work'))
+                                 length_val / karkas("platform_gaz_rate") * price_manager.get_auto_price('work'))
 
         karkas_s_platform_kamaz = (stoiki * price_manager.get_auto_price('truba_60_40_3') +
                                    verh * price_manager.get_auto_price('truba_60_40_2') +
                                    usil_verh * price_manager.get_auto_price('truba_40_40_2') +
                                    usil_bok * price_manager.get_auto_price('truba_40_40_2') +
                                    naborn_bort * price_manager.get_auto_price('doska') +
-                                   length_val / karkas_coeffs["platform_kamaz_rate"] * price_manager.get_auto_price(
-                    'work'))
+                                   length_val / karkas("platform_kamaz_rate") * price_manager.get_auto_price('work'))
 
         if marka_val == "Газель":
-            karkas_razborn = (karkas_s_platform_gaz * 2 + karkas_coeffs["razborn_work"] * price_manager.get_auto_price(
-                'work') * 2)
+            karkas_razborn = (
+                        karkas_s_platform_gaz * 2 + karkas("razborn_work") * price_manager.get_auto_price('work') * 2)
         else:
             karkas_razborn = (
-                        karkas_s_platform_kamaz * 2 + karkas_coeffs["razborn_work"] * price_manager.get_auto_price(
-                    'work') * 2)
+                        karkas_s_platform_kamaz * 2 + karkas("razborn_work") * price_manager.get_auto_price('work') * 2)
 
-        # Скидка
+        if is_legal_entity:
+            karkas_s_borta_gaz *= karkas("legal_multiplier")
+            karkas_s_borta_kamaz *= karkas("legal_multiplier")
+            karkas_s_platform_gaz *= karkas("legal_multiplier")
+            karkas_s_platform_kamaz *= karkas("legal_multiplier")
+            karkas_razborn *= karkas("legal_multiplier")
+
         if discount_percent > 0:
             karkas_s_borta_gaz *= (1 - discount_percent / 100)
             karkas_s_borta_kamaz *= (1 - discount_percent / 100)
@@ -586,20 +621,13 @@ def page_auto_calculator(price_manager: PriceManager):
             karkas_s_platform_kamaz *= (1 - discount_percent / 100)
             karkas_razborn *= (1 - discount_percent / 100)
 
-        if is_legal_entity:
-            karkas_s_borta_gaz *= karkas_coeffs["legal_multiplier"]
-            karkas_s_borta_kamaz *= karkas_coeffs["legal_multiplier"]
-            karkas_s_platform_gaz *= karkas_coeffs["legal_multiplier"]
-            karkas_s_platform_kamaz *= karkas_coeffs["legal_multiplier"]
-            karkas_razborn *= karkas_coeffs["legal_multiplier"]
-
-        karkas_s_borta_gaz = karkas_s_borta_gaz * karkas_coeffs["final_multiplier"]
+        karkas_s_borta_gaz = karkas_s_borta_gaz * karkas("final_multiplier")
         karkas_s_borta_gaz -= karkas_s_borta_gaz % -100
-        karkas_s_borta_kamaz = karkas_s_borta_kamaz * karkas_coeffs["final_multiplier"]
+        karkas_s_borta_kamaz = karkas_s_borta_kamaz * karkas("final_multiplier")
         karkas_s_borta_kamaz -= karkas_s_borta_kamaz % -100
-        karkas_s_platform_gaz = karkas_s_platform_gaz * karkas_coeffs["final_multiplier"]
+        karkas_s_platform_gaz = karkas_s_platform_gaz * karkas("final_multiplier")
         karkas_s_platform_gaz -= karkas_s_platform_gaz % -100
-        karkas_s_platform_kamaz = karkas_s_platform_kamaz * karkas_coeffs["final_multiplier"]
+        karkas_s_platform_kamaz = karkas_s_platform_kamaz * karkas("final_multiplier")
         karkas_s_platform_kamaz -= karkas_s_platform_kamaz % -100
         karkas_razborn -= karkas_razborn % -100
 
