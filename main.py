@@ -95,19 +95,18 @@ def page_polog_calculator(price_manager: PriceManager):
         cost = ((sq_pol * material_price) +
                 (luvers_pol * price_manager.get_polog_price('luver')) +
                 (sq_pol * work_percentage * price_manager.get_polog_price('work'))) * multiplier
+
+        # Первое округление до сотен
         cost -= cost % -100
 
         if is_legal_entity:
             legal_multiplier = price_manager.get_polog_coeff("legal_entity_multiplier", 0.25)
             cost = cost * (1 + legal_multiplier)
 
+        # Применяем скидку
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
-            rounding_method = price_manager.get_polog_coeff("discount_rounding_method", "round")
-            if rounding_method == "round":
-                cost = int(round(cost / 100) * 100)
-            else:
-                cost = int(cost // 100 * 100)
+            # НЕ округляем после скидки, оставляем как есть
 
         return int(cost)
 
