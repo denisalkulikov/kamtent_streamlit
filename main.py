@@ -208,7 +208,7 @@ def page_auto_calculator(price_manager: PriceManager):
         else:
             return (length * height_g * 2) + (width * height_g * 2) + (length * width)
 
-    # Функция для расчёта стоимости ткани (типовой тент) - ТОЧНО КАК В ПОЛОГАХ
+    # Функция для расчёта стоимости ткани (типовой тент)
     def calculate_typical_cost(material_price, area, length_val):
         typical = price_manager.get_typical_coeff
 
@@ -231,9 +231,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (typical("legal_multiplier") - 1))
+            cost = cost * typical("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -259,9 +262,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (chulok("legal_multiplier") - 1))
+            cost = cost * chulok("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -293,16 +299,19 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (sdvizhnoy("legal_multiplier") - 1))
+            cost = cost * sdvizhnoy("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
-        # 5. Умножаем на коэффициент
+        # 6. Умножаем на коэффициент
         cost = cost * sdvizhnoy("multiplier")
 
-        # 6. Финальное округление
+        # 7. Финальное округление
         cost -= cost % -100
 
         return int(cost)
@@ -323,9 +332,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (reklama("legal_multiplier") - 1))
+            cost = cost * reklama("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -380,9 +392,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 4. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (msk("legal_multiplier") - 1))
+            cost = cost * msk("legal_multiplier")
 
-        # 5. Скидка (БЕЗ дополнительного округления)
+        # 5. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 6. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -407,9 +422,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (shtornik("legal_multiplier") - 1))
+            cost = cost * shtornik("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -436,9 +454,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (tros("legal_multiplier") - 1))
+            cost = cost * tros("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -456,9 +477,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 3. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (demontazh("legal_multiplier") - 1))
+            cost = cost * demontazh("legal_multiplier")
 
-        # 4. Скидка (БЕЗ дополнительного округления)
+        # 4. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 5. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -516,9 +540,12 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 4. Наценка юрлица
         if is_legal_entity:
-            cost = cost * (1 + (vorota("legal_multiplier") - 1))
+            cost = cost * vorota("legal_multiplier")
 
-        # 5. Скидка (БЕЗ дополнительного округления)
+        # 5. Округление после наценки юрлица
+        cost -= cost % -100
+
+        # 6. Скидка
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
 
@@ -528,7 +555,7 @@ def page_auto_calculator(price_manager: PriceManager):
     def calculate_sdvig_stenki_cost(length_val, height_g_val):
         sdvig = price_manager.get_sdvig_coeff
 
-        # 1. Базовая стоимость
+        # 1. Базовая стоимость новых стенок
         square_sdvig_stenok = (length_val + sdvig("add_length")) * height_g_val + (length_val + sdvig("add_length"))
 
         rolik_sd = round(length_val / sdvig("rolik_step"))
@@ -559,10 +586,12 @@ def page_auto_calculator(price_manager: PriceManager):
                     perehodnik * price_manager.get_auto_price('perehodnik_profilya') +
                     mehanizm * price_manager.get_auto_price('mehanizm_natyascheniya'))
 
+        # Базовая стоимость с фурнитурой клиента
         cost_furnitura = (square_sdvig_stenok * price_manager.get_auto_price('pvh_900') +
                           lenta * price_manager.get_auto_price('lenta_F1300') +
                           rabota * price_manager.get_auto_price('work'))
 
+        # Базовая стоимость с люверсами
         cost_luvers = (square_sdvig_stenok * price_manager.get_auto_price('pvh_900') +
                        luver_40 * price_manager.get_auto_price('luvers_40') +
                        luver_12 * price_manager.get_auto_price('luvers_12') +
@@ -582,11 +611,16 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 4. Наценка юрлица
         if is_legal_entity:
-            cost_new = cost_new * (1 + (sdvig("legal_multiplier") - 1))
-            cost_furnitura = cost_furnitura * (1 + (sdvig("legal_multiplier") - 1))
-            cost_luvers = cost_luvers * (1 + (sdvig("legal_multiplier") - 1))
+            cost_new = cost_new * sdvig("legal_multiplier")
+            cost_furnitura = cost_furnitura * sdvig("legal_multiplier")
+            cost_luvers = cost_luvers * sdvig("legal_multiplier")
 
-        # 5. Скидка (БЕЗ дополнительного округления)
+        # 5. Округление после наценки юрлица
+        cost_new -= cost_new % -100
+        cost_furnitura -= cost_furnitura % -100
+        cost_luvers -= cost_luvers % -100
+
+        # 6. Скидка
         if discount_percent > 0:
             cost_new *= (1 - discount_percent / 100)
             cost_furnitura *= (1 - discount_percent / 100)
@@ -670,11 +704,16 @@ def page_auto_calculator(price_manager: PriceManager):
 
         # 4. Наценка юрлица
         if is_legal_entity:
-            cost_borta = cost_borta * (1 + (karkas("legal_multiplier") - 1))
-            cost_platform = cost_platform * (1 + (karkas("legal_multiplier") - 1))
-            cost_razborn = cost_razborn * (1 + (karkas("legal_multiplier") - 1))
+            cost_borta = cost_borta * karkas("legal_multiplier")
+            cost_platform = cost_platform * karkas("legal_multiplier")
+            cost_razborn = cost_razborn * karkas("legal_multiplier")
 
-        # 5. Скидка (БЕЗ дополнительного округления)
+        # 5. Округление после наценки юрлица
+        cost_borta -= cost_borta % -100
+        cost_platform -= cost_platform % -100
+        cost_razborn -= cost_razborn % -100
+
+        # 6. Скидка
         if discount_percent > 0:
             cost_borta *= (1 - discount_percent / 100)
             cost_platform *= (1 - discount_percent / 100)
