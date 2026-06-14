@@ -10,8 +10,11 @@ class PriceManager:
     def __init__(self):
         self.polog_prices = st.secrets.get("prices", {}).get("polog", {})
         self.auto_prices = st.secrets.get("prices", {}).get("auto", {})
-        self.coefficients = st.secrets.get("coefficients", {})
-        self.parameters = st.secrets.get("parameters", {})
+        self.polog_coeffs = st.secrets.get("polog_coefficients", {})
+        self.auto_coeffs = st.secrets.get("auto_coefficients", {})
+        self.chulok_coeffs = st.secrets.get("chulok_coefficients", {})
+        self.sdvizhnoy_coeffs = st.secrets.get("sdvizhnoy_coefficients", {})
+        self.additional_coeffs = st.secrets.get("additional_coefficients", {})
 
     def get_polog_price(self, material: str) -> float:
         return self.polog_prices.get(material, 0)
@@ -19,11 +22,20 @@ class PriceManager:
     def get_auto_price(self, material: str) -> float:
         return self.auto_prices.get(material, 0)
 
-    def get_coefficient(self, name: str, default: float = 0) -> float:
-        return self.coefficients.get(name, default)
+    def get_polog_coeff(self, name: str, default: Any = None) -> Any:
+        return self.polog_coeffs.get(name, default)
 
-    def get_parameter(self, name: str, default: Any = None) -> Any:
-        return self.parameters.get(name, default)
+    def get_auto_coeff(self, name: str, default: Any = None) -> Any:
+        return self.auto_coeffs.get(name, default)
+
+    def get_chulok_coeff(self, name: str, default: Any = None) -> Any:
+        return self.chulok_coeffs.get(name, default)
+
+    def get_sdvizhnoy_coeff(self, name: str, default: Any = None) -> Any:
+        return self.sdvizhnoy_coeffs.get(name, default)
+
+    def get_additional_coeff(self, name: str, default: Any = None) -> Any:
+        return self.additional_coeffs.get(name, default)
 
 
 class AuthManager:
@@ -64,38 +76,11 @@ class AuthManager:
             st.rerun()
 
 
-class CostCalculator:
-    """Класс с методами расчета стоимости"""
-
-    def __init__(self, price_manager: PriceManager):
-        self.pm = price_manager
-
-    def format_cost(self, cost: Any) -> str:
-        """Форматирование стоимости"""
-        if cost == "НЕВЕРНО!" or not isinstance(cost, (int, float)):
-            return str(cost)
-        return "{:,.2f} руб".format(cost).replace(",", " ")
-
-    def round_to_hundreds(self, cost: float) -> int:
-        """Округление до сотен в большую сторону"""
-        return int(math.ceil(cost / 100) * 100)
-
-    def apply_legal_discount(self, cost: float, is_legal: bool, discount_percent: float = 0) -> float:
-        """Применение наценки для юрлица и скидки"""
-        if is_legal:
-            cost = cost * (1 + self.pm.get_coefficient("polog_discount_legal", 0.25))
-
-        if discount_percent > 0:
-            cost = cost * (1 - discount_percent / 100)
-
-        return self.round_to_hundreds(cost)
-
-
-class PologCalculator(CostCalculator):
+class PologCalculator:
     """Калькулятор для пологов"""
 
     def __init__(self, price_manager: PriceManager):
-        super().__init__(price_manager)
+        self.pm = price_manager
         self.material_names = {
             'pp': 'ПП', 'brezent': 'Брезент', 'pvh_300': 'ПВХ300',
             'pvh_500': 'ПВХ500', 'pvh_630': 'ПВХ630', 'pvh_650': 'ПВХ650',
@@ -105,39 +90,57 @@ class PologCalculator(CostCalculator):
         }
         self.excluded_materials = {'luver', 'work'}
 
-    def calculate_cost(self, material_price: float, length: float, width: float, count: int,
-                       is_legal: bool, discount_percent: float) -> Tuple[int, int]:
-        """Расчет стоимости одного полога и общей стоимости"""
+    def format_cost(self, cost: int) -> str:
+        """Форматирование стоимости"""
+        return "{:,.2f} руб".format(cost).replace(",", " ")
+
+    def calculate_cost(self, material_price: float, length: float, width: float,
+                       is_legal: bool, discount_percent: float) -> float:
+        """Расчет стоимости одного полога без округления до количества"""
         # Площадь полога с учётом припусков
         sq_pol = (length + 0.2) * (width + 0.2)
+
         # Количество люверсов (округляем вверх)
-        luvers_pol = math.ceil((length * 2 + width * 2) / self.pm.get_parameter("polog_luver_spacing", 0.3))
+        luver_spacing = self.pm.get_polog_coeff("luver_spacing", 0.3)
+        luvers_pol = math.ceil((length * 2 + width * 2) / luver_spacing)
 
         # Расчёт стоимости без округления
+        multiplier = self.pm.get_polog_coeff("multiplier", 2.5)
+        work_percentage = self.pm.get_polog_coeff("work_percentage", 0.2)
+
         cost = ((sq_pol * material_price) +
                 (luvers_pol * self.pm.get_polog_price('luver')) +
-                (sq_pol * 0.2 * self.pm.get_polog_price('work'))) * self.pm.get_parameter("polog_multiplier", 2.5)
+                (sq_pol * work_percentage * self.pm.get_polog_price('work'))) * multiplier
 
-        # Применяем наценку для юрлица и скидку
+        # Применяем наценку для юрлица
         if is_legal:
-            cost = cost * (1 + self.pm.get_coefficient("polog_discount_legal", 0.25))
+            legal_multiplier = self.pm.get_polog_coeff("legal_entity_multiplier", 0.25)
+            cost = cost * (1 + legal_multiplier)
 
+        # Применяем скидку
         if discount_percent > 0:
             cost = cost * (1 - discount_percent / 100)
 
-        # Округляем до сотен
-        cost = int(math.ceil(cost / 100) * 100)
+        return cost
 
-        total_cost = cost * count
-        return cost, total_cost
-
-    def run(self, length: float, width: float, count: int, is_legal: bool, discount_percent: float) -> pd.DataFrame:
+    def run(self, length: float, width: float, count: int,
+            is_legal: bool, discount_percent: float) -> pd.DataFrame:
         """Запуск расчета для всех материалов"""
         results = []
+        rounding = self.pm.get_polog_coeff("rounding", 100)
 
         for material, price in self.pm.polog_prices.items():
             if material not in self.excluded_materials:
-                cost_per_item, total_cost = self.calculate_cost(price, length, width, count, is_legal, discount_percent)
+                # Сначала рассчитываем стоимость одного изделия без округления
+                cost_per_item_raw = self.calculate_cost(price, length, width, is_legal, discount_percent)
+
+                # Умножаем на количество
+                total_cost_raw = cost_per_item_raw * count
+
+                # Округляем до сотен
+                cost_per_item = int(math.ceil(cost_per_item_raw / rounding)) * rounding
+                total_cost = int(math.ceil(total_cost_raw / rounding)) * rounding
+
                 results.append({
                     'Материал': self.material_names.get(material, material),
                     'Стоимость за 1 изделие': self.format_cost(cost_per_item),
@@ -145,6 +148,55 @@ class PologCalculator(CostCalculator):
                 })
 
         return pd.DataFrame(results)
+
+
+class AutoCalculator:
+    """Калькулятор для авто"""
+
+    def __init__(self, price_manager: PriceManager):
+        self.pm = price_manager
+
+    def format_cost(self, cost: int) -> str:
+        """Форматирование стоимости"""
+        return "{:,.2f} руб".format(cost).replace(",", " ")
+
+    def calculate_typical_cost(self, material_price: float, area: float, length: float,
+                               is_legal: bool, discount_percent: float) -> int:
+        """Расчет стоимости типового тента"""
+        # Определяем коэффициент в зависимости от длины
+        length_small = self.pm.get_auto_coeff("length_small", 5)
+        length_large = self.pm.get_auto_coeff("length_large", 10)
+        coeff_small = self.pm.get_auto_coeff("coefficient_small", 2.8)
+        coeff_medium = self.pm.get_auto_coeff("coefficient_medium", 2.6)
+        coeff_large = self.pm.get_auto_coeff("coefficient_large", 2.4)
+
+        if length < length_small:
+            cost = material_price * coeff_small
+        elif length > length_large:
+            cost = material_price * coeff_large
+        else:
+            cost = material_price * coeff_medium
+
+        # Округляем до десятков
+        rounding_step = self.pm.get_auto_coeff("rounding_step", 10)
+        cost = math.ceil(cost / rounding_step) * rounding_step
+
+        # Умножаем на площадь
+        cost = cost * area
+
+        # Применяем наценку для юрлица
+        if is_legal:
+            legal_multiplier = self.pm.get_auto_coeff("legal_entity_multiplier", 0.25)
+            cost = cost * (1 + legal_multiplier)
+
+        # Применяем скидку
+        if discount_percent > 0:
+            discount_multiplier = self.pm.get_auto_coeff("discount_multiplier", 0.01)
+            cost = cost * (1 - discount_percent * discount_multiplier)
+
+        # Финальное округление до сотен
+        rounding_final = self.pm.get_auto_coeff("rounding_final", 100)
+        return int(math.ceil(cost / rounding_final) * rounding_final)
 
 
 def page_polog_calculator(price_manager: PriceManager):
@@ -183,43 +235,14 @@ def page_auto_calculator(price_manager: PriceManager):
     # Инициализация состояния для хранения значений
     if 'auto_length' not in st.session_state:
         st.session_state.auto_length = 1.0
-    if 'auto_width' not in st.session_state:
-        st.session_state.auto_width = 1.0
-    if 'auto_height_p' not in st.session_state:
-        st.session_state.auto_height_p = 1.0
-    if 'auto_height_g' not in st.session_state:
-        st.session_state.auto_height_g = 1.0
-    if 'auto_height_b' not in st.session_state:
-        st.session_state.auto_height_b = 1.0
-    if 'auto_count_s' not in st.session_state:
-        st.session_state.auto_count_s = 1
 
-    # Ввод данных с использованием session_state
+    # Ввод данных
     length = st.number_input("Введите длину (м)", value=st.session_state.auto_length,
                              min_value=0.01, step=0.1, key="auto_length_input")
     st.session_state.auto_length = length
 
-    width = st.number_input("Введите ширину (м)", value=st.session_state.auto_width,
-                            min_value=0.01, step=0.1, key="auto_width_input")
-    st.session_state.auto_width = width
-
-    height_p = st.number_input("Введите полезную высоту (м)", value=st.session_state.auto_height_p,
-                               min_value=0.01, step=0.1, key="auto_height_p_input")
-    st.session_state.auto_height_p = height_p
-
-    height_g = st.number_input("Введите высоту готовой стенки (м)", value=st.session_state.auto_height_g,
-                               min_value=0.01, step=0.1, key="auto_height_g_input")
-    st.session_state.auto_height_g = height_g
-
-    height_b = st.number_input("Введите высоту борта (м)", value=st.session_state.auto_height_b,
-                               min_value=0.01, step=0.1, key="auto_height_b_input")
-    st.session_state.auto_height_b = height_b
-
-    count_s = st.number_input("Введите количество стоек (шт)", value=st.session_state.auto_count_s,
-                              min_value=1, step=1, key="auto_count_s_input")
-    st.session_state.auto_count_s = count_s
-
-    marka = st.selectbox("Выберите марку авто", ("Газель", "Иное"), index=None, placeholder="Выбрать вариант")
+    width = st.number_input("Введите ширину (м)", value=1.0, min_value=0.01, step=0.1)
+    height_g = st.number_input("Введите высоту готовой стенки (м)", value=1.0, min_value=0.01, step=0.1)
 
     # Чекбоксы для ворот и щита
     col1, col2 = st.columns(2)
@@ -238,38 +261,15 @@ def page_auto_calculator(price_manager: PriceManager):
     # Функция для расчета площади
     def calculate_area(length, width, height_g, is_vorota, is_schit):
         if is_vorota and is_schit:
-            sq = (length * height_g * 2) + (length * width)
+            return (length * height_g * 2) + (length * width)
         elif is_vorota or is_schit:
-            sq = (length * height_g * 2) + (width * height_g) + (length * width)
+            return (length * height_g * 2) + (width * height_g) + (length * width)
         else:
-            sq = (length * height_g * 2) + (width * height_g * 2) + (length * width)
-        return sq
+            return (length * height_g * 2) + (width * height_g * 2) + (length * width)
 
-    # Функция для расчета стоимости ткани
-    def calculate_typical_cost(material_price, area, length, is_legal_entity, discount_percent):
-        if length < 5:
-            cost = material_price * 2.8
-        elif length > 10:
-            cost = material_price * 2.4
-        else:
-            cost = material_price * 2.6
-        cost = math.ceil(cost / 10) * 10
-        cost = cost * area
-
-        if is_legal_entity:
-            cost = cost * 1.25
-
-        if discount_percent > 0:
-            cost = cost * (1 - discount_percent / 100)
-
-        return int(math.ceil(cost / 100) * 100)
-
-    # Функция для форматирования
-    def format_cost(cost):
-        return "{:,.2f} руб".format(cost).replace(",", " ")
-
-    # Расчет площади и стоимости для разных материалов
+    # Расчет площади и стоимости
     area = calculate_area(length, width, height_g, is_vorota, is_schit)
+    calculator = AutoCalculator(price_manager)
 
     # Материалы для расчета
     materials = {
@@ -283,16 +283,16 @@ def page_auto_calculator(price_manager: PriceManager):
     results_typical = []
     for material_name, material_price in materials.items():
         if material_price:
-            cost = calculate_typical_cost(material_price, area, length, is_legal_entity, discount_percent)
+            cost = calculator.calculate_typical_cost(material_price, area, length, is_legal_entity, discount_percent)
             results_typical.append(cost)
 
     # Создание DataFrame
     results_df = pd.DataFrame({
         "Тент": ["Тент типовой"],
-        "ПВХ630": [format_cost(results_typical[0]) if len(results_typical) > 0 else "N/A"],
-        "ПВХ650": [format_cost(results_typical[1]) if len(results_typical) > 1 else "N/A"],
-        "ПВХ750": [format_cost(results_typical[2]) if len(results_typical) > 2 else "N/A"],
-        "ПВХ900": [format_cost(results_typical[3]) if len(results_typical) > 3 else "N/A"],
+        "ПВХ630": [calculator.format_cost(results_typical[0]) if len(results_typical) > 0 else "N/A"],
+        "ПВХ650": [calculator.format_cost(results_typical[1]) if len(results_typical) > 1 else "N/A"],
+        "ПВХ750": [calculator.format_cost(results_typical[2]) if len(results_typical) > 2 else "N/A"],
+        "ПВХ900": [calculator.format_cost(results_typical[3]) if len(results_typical) > 3 else "N/A"],
     })
 
     # Вывод результатов
