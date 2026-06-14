@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.13-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.42.2-FF4B4B.svg)](https://streamlit.io)
 [![Pandas](https://img.shields.io/badge/Pandas-2.2.3-150458.svg)](https://pandas.pydata.org)
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)](https://github.com/denisalkulikov/kamtent_streamlit/blob/master/LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/denisalkulikov/kamtent_streamlit/blob/master/LICENSE)
 
 [![Version](https://img.shields.io/badge/Version-1.0.0-blue.svg)](https://github.com/denisalkulikov/kamtent_streamlit/releases)
 ---
