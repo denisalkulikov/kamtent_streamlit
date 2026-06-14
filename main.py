@@ -76,17 +76,17 @@ class CostCalculator:
             return str(cost)
         return "{:,.2f} руб".format(cost).replace(",", " ")
 
-    def round_to_hundreds(self, cost: float) -> float:
+    def round_to_hundreds(self, cost: float) -> int:
         """Округление до сотен в большую сторону"""
-        return math.ceil(cost / 100) * 100
+        return int(math.ceil(cost / 100) * 100)
 
     def apply_legal_discount(self, cost: float, is_legal: bool, discount_percent: float = 0) -> float:
         """Применение наценки для юрлица и скидки"""
         if is_legal:
-            cost *= (1 + self.pm.get_coefficient("polog_discount_legal", 0.25))
+            cost = cost * (1 + self.pm.get_coefficient("polog_discount_legal", 0.25))
 
         if discount_percent > 0:
-            cost *= (1 - discount_percent / 100)
+            cost = cost * (1 - discount_percent / 100)
 
         return self.round_to_hundreds(cost)
 
@@ -106,18 +106,29 @@ class PologCalculator(CostCalculator):
         self.excluded_materials = {'luver', 'work'}
 
     def calculate_cost(self, material_price: float, length: float, width: float, count: int,
-                       is_legal: bool, discount_percent: float) -> Tuple[float, float]:
+                       is_legal: bool, discount_percent: float) -> Tuple[int, int]:
         """Расчет стоимости одного полога и общей стоимости"""
+        # Площадь полога с учётом припусков
         sq_pol = (length + 0.2) * (width + 0.2)
+        # Количество люверсов (округляем вверх)
         luvers_pol = math.ceil((length * 2 + width * 2) / self.pm.get_parameter("polog_luver_spacing", 0.3))
 
+        # Расчёт стоимости без округления
         cost = ((sq_pol * material_price) +
                 (luvers_pol * self.pm.get_polog_price('luver')) +
                 (sq_pol * 0.2 * self.pm.get_polog_price('work'))) * self.pm.get_parameter("polog_multiplier", 2.5)
 
-        cost = self.apply_legal_discount(cost, is_legal, discount_percent)
-        total_cost = cost * count
+        # Применяем наценку для юрлица и скидку
+        if is_legal:
+            cost = cost * (1 + self.pm.get_coefficient("polog_discount_legal", 0.25))
 
+        if discount_percent > 0:
+            cost = cost * (1 - discount_percent / 100)
+
+        # Округляем до сотен
+        cost = int(math.ceil(cost / 100) * 100)
+
+        total_cost = cost * count
         return cost, total_cost
 
     def run(self, length: float, width: float, count: int, is_legal: bool, discount_percent: float) -> pd.DataFrame:
@@ -136,105 +147,30 @@ class PologCalculator(CostCalculator):
         return pd.DataFrame(results)
 
 
-class AutoCalculator(CostCalculator):
-    """Калькулятор для авто"""
-
-    def __init__(self, price_manager: PriceManager):
-        super().__init__(price_manager)
-        self.excluded_materials = {'babochka', 'work', 'shnur_8', 'remeshok', 'reklama'}
-        self.materials_list = ['pvh_630', 'pvh_650', 'pvh_750', 'pvh_900']
-
-    def calculate_area(self, length: float, width: float, height_g: float, is_vorota: bool, is_schit: bool) -> float:
-        """Расчет площади ткани"""
-        if is_vorota and is_schit:
-            return (length * height_g * 2) + (length * width)
-        elif is_vorota or is_schit:
-            return (length * height_g * 2) + (width * height_g) + (length * width)
-        else:
-            return (length * height_g * 2) + (width * height_g * 2) + (length * width)
-
-    def calculate_typical_cost(self, material_price: float, area: float, is_legal: bool,
-                               discount_percent: float) -> float:
-        """Расчет стоимости типового тента"""
-        length = st.session_state.get('auto_length', 1.0)
-
-        if length < self.pm.get_parameter("polog_length_small", 5):
-            cost = material_price * self.pm.get_parameter("polog_coefficient_small", 2.8)
-        elif length > self.pm.get_parameter("polog_length_large", 10):
-            cost = material_price * self.pm.get_parameter("polog_coefficient_large", 2.4)
-        else:
-            cost = material_price * self.pm.get_parameter("polog_coefficient_medium", 2.6)
-
-        cost = self.round_to_hundreds(cost) * area
-        return self.apply_legal_discount(cost, is_legal, discount_percent)
-
-    def calculate_chulok_cost(self, material_price: float, area: float, length: float,
-                              is_legal: bool, discount_percent: float) -> float:
-        """Расчет стоимости тента-чулка"""
-        fabric_cost = self.round_to_hundreds(material_price * area)
-        babochka_count = ((round(length / self.pm.get_parameter("chulok_babochka_step", 0.65))) -
-                          self.pm.get_parameter("chulok_babochka_base", 6)) * 3 + 6 * 5
-        babochka_cost = babochka_count * self.pm.get_auto_price('babochka')
-        work_cost = self.pm.get_auto_price('work') * (length / self.pm.get_parameter("chulok_work_step", 0.4))
-
-        total_cost = (fabric_cost + babochka_cost + work_cost) * self.pm.get_parameter("chulok_multiplier", 2)
-        return self.apply_legal_discount(total_cost, is_legal, discount_percent)
-
-    def calculate_sdvizhnoy_krysha_cost(self, material_price: float, length: float, width: float,
-                                        is_legal: bool, discount_percent: float) -> float:
-        """Расчет стоимости тента со сдвижной крышей"""
-        s_krysha = (length + self.pm.get_parameter("sdvizhnoy_add_length", 0.6)) * (width + 0.6)
-        p_shnur = length * 2 + 2
-
-        count_plastin_650 = math.ceil((length - 1) / self.pm.get_parameter("sdvizhnoy_plastin_step", 0.65) * 2)
-        if count_plastin_650 % 2 != 0:
-            count_plastin_650 += 1
-
-        count_remeshki = ((round(count_plastin_650 / 2 + 1)) - 4) * 3 + 20
-        p_usilitel = (round(count_plastin_650 / 2 + 1) * width * 0.1) + ((length * 2 + width * 2) * 0.15)
-        count_work = length * 1.5
-
-        total_cost = (s_krysha * material_price + p_shnur * self.pm.get_auto_price('shnur_8') +
-                      count_remeshki * self.pm.get_auto_price('remeshok') + p_usilitel * material_price +
-                      count_work * self.pm.get_auto_price('work'))
-
-        total_cost = self.apply_legal_discount(total_cost, is_legal, discount_percent)
-        return self.round_to_hundreds(total_cost * self.pm.get_parameter("sdvizhnoy_coefficient", 1.7))
-
-    def run_typical(self, area: float, is_legal: bool, discount_percent: float) -> List[float]:
-        """Расчет для типовых тентов"""
-        results = []
-        for material in self.materials_list:
-            price = self.pm.get_auto_price(material)
-            if price:
-                results.append(self.calculate_typical_cost(price, area, is_legal, discount_percent))
-        return results
-
-
-def init_session_state():
-    """Инициализация состояния сессии"""
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
-
-
 def page_polog_calculator(price_manager: PriceManager):
     """Страница калькулятора пологов"""
     st.title("Калькулятор пологов")
 
     calculator = PologCalculator(price_manager)
 
+    # Ввод данных
+    length = st.number_input("Введите длину изделия (м)", value=1.0, min_value=0.01, step=0.1)
+    width = st.number_input("Введите ширину изделия (м)", value=1.0, min_value=0.01, step=0.1)
+    count = st.number_input("Введите количество изделий", value=1, min_value=1, step=1)
+
+    # Чекбоксы в две колонки
     col1, col2 = st.columns(2)
     with col1:
-        length = st.number_input("Введите длину изделия (м)", value=1.0, min_value=0.01)
-        width = st.number_input("Введите ширину изделия (м)", value=1.0, min_value=0.01)
-        count = st.number_input("Введите количество изделий", value=1, min_value=1, step=1)
-
-    with col2:
         is_legal_entity = st.checkbox("Юридическое лицо")
+    with col2:
         apply_discount = st.checkbox("Предоставить скидку")
-        discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0,
-                                           max_value=100) if apply_discount else 0
 
+    # Поле для ввода скидки
+    discount_percent = 0
+    if apply_discount:
+        discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0, max_value=100)
+
+    # Расчет и отображение результатов
     results_df = calculator.run(length, width, count, is_legal_entity, discount_percent)
     st.dataframe(results_df, hide_index=True, use_container_width=True)
 
@@ -244,15 +180,48 @@ def page_auto_calculator(price_manager: PriceManager):
     st.title("Калькулятор продукции на авто")
     st.write("Цены актуальны на 10.10.2025")
 
-    # Сохраняем length в session_state для доступа из методов
-    st.session_state.auto_length = st.number_input("Введите длину (м)", value=1.0, min_value=0.01, key="auto_length")
-    width = st.number_input("Введите ширину (м)", value=1.0, min_value=0.01)
-    height_p = st.number_input("Введите полезную высоту (м)", value=1.0, min_value=0.01)
-    height_g = st.number_input("Введите высоту готовой стенки (м)", value=1.0, min_value=0.01)
-    height_b = st.number_input("Введите высоту борта (м)", value=1.0, min_value=0.01)
-    count_s = st.number_input("Введите количество стоек (шт)", value=1, min_value=1, step=1)
+    # Инициализация состояния для хранения значений
+    if 'auto_length' not in st.session_state:
+        st.session_state.auto_length = 1.0
+    if 'auto_width' not in st.session_state:
+        st.session_state.auto_width = 1.0
+    if 'auto_height_p' not in st.session_state:
+        st.session_state.auto_height_p = 1.0
+    if 'auto_height_g' not in st.session_state:
+        st.session_state.auto_height_g = 1.0
+    if 'auto_height_b' not in st.session_state:
+        st.session_state.auto_height_b = 1.0
+    if 'auto_count_s' not in st.session_state:
+        st.session_state.auto_count_s = 1
+
+    # Ввод данных с использованием session_state
+    length = st.number_input("Введите длину (м)", value=st.session_state.auto_length,
+                             min_value=0.01, step=0.1, key="auto_length_input")
+    st.session_state.auto_length = length
+
+    width = st.number_input("Введите ширину (м)", value=st.session_state.auto_width,
+                            min_value=0.01, step=0.1, key="auto_width_input")
+    st.session_state.auto_width = width
+
+    height_p = st.number_input("Введите полезную высоту (м)", value=st.session_state.auto_height_p,
+                               min_value=0.01, step=0.1, key="auto_height_p_input")
+    st.session_state.auto_height_p = height_p
+
+    height_g = st.number_input("Введите высоту готовой стенки (м)", value=st.session_state.auto_height_g,
+                               min_value=0.01, step=0.1, key="auto_height_g_input")
+    st.session_state.auto_height_g = height_g
+
+    height_b = st.number_input("Введите высоту борта (м)", value=st.session_state.auto_height_b,
+                               min_value=0.01, step=0.1, key="auto_height_b_input")
+    st.session_state.auto_height_b = height_b
+
+    count_s = st.number_input("Введите количество стоек (шт)", value=st.session_state.auto_count_s,
+                              min_value=1, step=1, key="auto_count_s_input")
+    st.session_state.auto_count_s = count_s
+
     marka = st.selectbox("Выберите марку авто", ("Газель", "Иное"), index=None, placeholder="Выбрать вариант")
 
+    # Чекбоксы для ворот и щита
     col1, col2 = st.columns(2)
     with col1:
         is_vorota = st.checkbox("Наличие ворот")
@@ -261,24 +230,77 @@ def page_auto_calculator(price_manager: PriceManager):
         is_legal_entity = st.checkbox("Юридическое лицо", key="auto_legal")
         apply_discount = st.checkbox("Предоставить скидку", key="auto_discount")
 
-    discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0,
-                                       max_value=100) if apply_discount else 0
+    # Поле для ввода скидки
+    discount_percent = 0
+    if apply_discount:
+        discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0, max_value=100)
 
-    calculator = AutoCalculator(price_manager)
-    area = calculator.calculate_area(st.session_state.auto_length, width, height_g, is_vorota, is_schit)
+    # Функция для расчета площади
+    def calculate_area(length, width, height_g, is_vorota, is_schit):
+        if is_vorota and is_schit:
+            sq = (length * height_g * 2) + (length * width)
+        elif is_vorota or is_schit:
+            sq = (length * height_g * 2) + (width * height_g) + (length * width)
+        else:
+            sq = (length * height_g * 2) + (width * height_g * 2) + (length * width)
+        return sq
 
-    # Простые расчеты для демонстрации
-    results = calculator.run_typical(area, is_legal_entity, discount_percent)
+    # Функция для расчета стоимости ткани
+    def calculate_typical_cost(material_price, area, length, is_legal_entity, discount_percent):
+        if length < 5:
+            cost = material_price * 2.8
+        elif length > 10:
+            cost = material_price * 2.4
+        else:
+            cost = material_price * 2.6
+        cost = math.ceil(cost / 10) * 10
+        cost = cost * area
 
+        if is_legal_entity:
+            cost = cost * 1.25
+
+        if discount_percent > 0:
+            cost = cost * (1 - discount_percent / 100)
+
+        return int(math.ceil(cost / 100) * 100)
+
+    # Функция для форматирования
+    def format_cost(cost):
+        return "{:,.2f} руб".format(cost).replace(",", " ")
+
+    # Расчет площади и стоимости для разных материалов
+    area = calculate_area(length, width, height_g, is_vorota, is_schit)
+
+    # Материалы для расчета
+    materials = {
+        'ПВХ630': price_manager.get_auto_price('pvh_630'),
+        'ПВХ650': price_manager.get_auto_price('pvh_650'),
+        'ПВХ750': price_manager.get_auto_price('pvh_750'),
+        'ПВХ900': price_manager.get_auto_price('pvh_900')
+    }
+
+    # Расчет результатов
+    results_typical = []
+    for material_name, material_price in materials.items():
+        if material_price:
+            cost = calculate_typical_cost(material_price, area, length, is_legal_entity, discount_percent)
+            results_typical.append(cost)
+
+    # Создание DataFrame
     results_df = pd.DataFrame({
-        "Тент": ["Тент типовой", "Тент сдвижной крыши", "Тент (чулок)"],
-        "ПВХ630": [calculator.format_cost(results[0]) if len(results) > 0 else "N/A"] * 3,
-        "ПВХ650": [calculator.format_cost(results[1]) if len(results) > 1 else "N/A"] * 3,
-        "ПВХ750": [calculator.format_cost(results[2]) if len(results) > 2 else "N/A"] * 3,
-        "ПВХ900": [calculator.format_cost(results[3]) if len(results) > 3 else "N/A"] * 3,
+        "Тент": ["Тент типовой"],
+        "ПВХ630": [format_cost(results_typical[0]) if len(results_typical) > 0 else "N/A"],
+        "ПВХ650": [format_cost(results_typical[1]) if len(results_typical) > 1 else "N/A"],
+        "ПВХ750": [format_cost(results_typical[2]) if len(results_typical) > 2 else "N/A"],
+        "ПВХ900": [format_cost(results_typical[3]) if len(results_typical) > 3 else "N/A"],
     })
 
+    # Вывод результатов
     st.dataframe(results_df, hide_index=True, use_container_width=True)
+
+    # Дополнительная информация
+    st.info(
+        "Примечание: Полная версия калькулятора авто включает расчеты МСК, шторных механизмов, сдвижных стенок и других компонентов.")
 
 
 def page_info():
@@ -289,7 +311,9 @@ def page_info():
 
 def main():
     """Главная функция приложения"""
-    init_session_state()
+    # Инициализация состояния сессии
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
 
     auth_manager = AuthManager()
 
