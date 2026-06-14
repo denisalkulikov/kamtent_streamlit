@@ -103,8 +103,11 @@ def page_polog_calculator(price_manager: PriceManager):
 
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
-            # Математическое округление до сотен (92475 вместо 92400)
-            cost = int(round(cost / 100) * 100)
+            rounding_method = price_manager.get_polog_coeff("discount_rounding_method", "round")
+            if rounding_method == "round":
+                cost = int(round(cost / 100) * 100)
+            else:
+                cost = int(cost // 100 * 100)
 
         return int(cost)
 
@@ -156,6 +159,12 @@ def page_auto_calculator(price_manager: PriceManager):
     if apply_discount:
         discount_percent = st.number_input("Введите размер скидки (в %)", value=0, min_value=0, max_value=100, step=1)
 
+    # Получаем коэффициенты для юрлица из secrets
+    legal_multiplier = price_manager.get_auto_coeff("legal_entity_multiplier", 1.25)
+    chulok_legal_multiplier = price_manager.get_auto_coeff("chulok_legal_multiplier", 1.25)
+    sdvizhnoy_legal_multiplier = price_manager.get_auto_coeff("sdvizhnoy_legal_multiplier", 1.25)
+    reklama_legal_multiplier = price_manager.get_auto_coeff("reklama_legal_multiplier", 1.25)
+
     # Функция для расчёта площади изделия
     def calculate_area(length, width, height_g, is_vorota, is_schit):
         if is_vorota and is_schit:
@@ -186,7 +195,7 @@ def page_auto_calculator(price_manager: PriceManager):
         cost = cost * area
 
         if is_legal_entity:
-            cost *= 1.25
+            cost *= legal_multiplier
 
         if discount_percent > 0:
             cost *= (1 - discount_percent / 100)
@@ -211,7 +220,7 @@ def page_auto_calculator(price_manager: PriceManager):
         total_cost = (fabric_cost + babochka_cost + work_cost) * chulok_multiplier
 
         if is_legal_entity:
-            total_cost *= 1.25
+            total_cost *= chulok_legal_multiplier
 
         if discount_percent > 0:
             total_cost *= (1 - discount_percent / 100)
@@ -240,7 +249,7 @@ def page_auto_calculator(price_manager: PriceManager):
                       count_work * price_manager.get_auto_price('work'))
 
         if is_legal_entity:
-            total_cost *= 1.25
+            total_cost *= sdvizhnoy_legal_multiplier
 
         if discount_percent > 0:
             total_cost *= (1 - discount_percent / 100)
@@ -262,7 +271,7 @@ def page_auto_calculator(price_manager: PriceManager):
         total_cost = (reklama_cost + fabric_cost + work_cost) * reklama_multiplier
 
         if is_legal_entity:
-            total_cost *= 1.25
+            total_cost *= reklama_legal_multiplier
 
         if discount_percent > 0:
             total_cost *= (1 - discount_percent / 100)
