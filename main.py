@@ -115,9 +115,10 @@ def page_polog_calculator(price_manager: PriceManager):
         if is_legal_entity:
             cost = cost * 0.25 + cost
 
+        # Применяем скидку ДО округления до сотен
         if discount_percent > 0:
-            cost *= (1 - discount_percent / 100)
-            cost = int(cost // 100 * 100)
+            cost = cost * (1 - discount_percent / 100)
+            cost = int(cost // 100 * 100)  # Округляем до сотен вниз
 
         return int(cost)
 
@@ -244,6 +245,157 @@ def page_auto_calculator(price_manager: PriceManager):
         total_cost -= total_cost % -100
         return int(total_cost)
 
+    # Функция для расчёта стоимости МСК (пластины)
+    def calculate_msk_cost(length, is_legal_entity, discount_percent):
+        if math.ceil(length / 0.65 * 2) % 2 == 0:
+            kronshtein_count = math.ceil(length / 0.65 * 2)
+        else:
+            kronshtein_count = math.ceil(length / 0.65 * 2) + 1
+
+        truba_30_30_count = (kronshtein_count / 2 * 2.55) / 6
+        truba_30_30_count -= truba_30_30_count % -1
+        truba_60_40_count = length / 6 * 2
+        truba_60_40_count -= truba_60_40_count % -1
+        shveler_count = length / 2.48 * 2
+        shveler_count -= shveler_count % -1
+
+        if math.ceil((length - 1) / 0.65 * 2) % 2 == 0:
+            count_plastin_650 = math.ceil((length - 1) / 0.65 * 2)
+        else:
+            count_plastin_650 = math.ceil((length - 1) / 0.65 * 2) + 1
+        count_plastin_black = count_plastin_650 + 2
+
+        msk_cost = int((kronshtein_count * price_manager.get_auto_price('kronshtein') +
+                        truba_30_30_count * price_manager.get_auto_price('truba_30_30_2') +
+                        truba_60_40_count * price_manager.get_auto_price('truba_60_40_3') +
+                        shveler_count * price_manager.get_auto_price('shveler') +
+                        kronshtein_count * price_manager.get_auto_price('podship_big') +
+                        kronshtein_count * 2 * price_manager.get_auto_price('podship_small') +
+                        kronshtein_count * 2 * price_manager.get_auto_price('gaika_m14') +
+                        kronshtein_count * price_manager.get_auto_price('bolt_10_20') +
+                        kronshtein_count * 2 * price_manager.get_auto_price('bolt_12_30') +
+                        count_plastin_650 * price_manager.get_auto_price('plastina_650') +
+                        count_plastin_black * price_manager.get_auto_price('plastina_black') +
+                        2 * price_manager.get_auto_price('fiksator') +
+                        2 * price_manager.get_auto_price('amortizator') +
+                        48 * price_manager.get_auto_price('work') +
+                        length * 6 * price_manager.get_auto_price('work')) * 2)
+
+        if is_legal_entity:
+            msk_cost *= 1.2
+
+        if discount_percent > 0:
+            msk_cost *= (1 - discount_percent / 100)
+
+        msk_cost -= msk_cost % -100
+        return int(msk_cost)
+
+    # Функция для расчёта стоимости Шторного механизма
+    def calculate_shtornik_cost(length, is_legal_entity, discount_percent):
+        shtorn_profile_count = length / 6 * 2
+        shtorn_profile_count -= shtorn_profile_count % -1
+        shtorn_work_count = length * 0.73
+        shtorn_work_count -= shtorn_work_count % -1
+
+        shtornik_cost = int((shtorn_profile_count * price_manager.get_auto_price('shtorn_profil') +
+                             shtorn_work_count * price_manager.get_auto_price('work')) * 2)
+
+        if is_legal_entity:
+            shtornik_cost *= 1.2
+
+        if discount_percent > 0:
+            shtornik_cost *= (1 - discount_percent / 100)
+
+        shtornik_cost -= shtornik_cost % -100
+        return int(shtornik_cost)
+
+    # Функция для расчёта стоимости Троса
+    def calculate_tros_cost(length, width, height_p, is_vorota, is_schit, is_legal_entity, discount_percent):
+        perimetr_total = length * 2 + width * 2 + height_p * 4
+        perimetr_half = length * 2 + width * 2 + height_p * 2
+        perimetr_min = length * 2 + width * 2
+
+        if is_vorota and is_schit:
+            tros_cost = int(perimetr_total * price_manager.get_auto_price('tros') * 1.5)
+        elif not is_vorota and not is_schit:
+            tros_cost = int(perimetr_min * price_manager.get_auto_price('tros') * 1.5)
+        else:
+            tros_cost = int(perimetr_half * price_manager.get_auto_price('tros') * 1.5)
+
+        if is_legal_entity:
+            tros_cost *= 1.2
+
+        if discount_percent > 0:
+            tros_cost *= (1 - discount_percent / 100)
+
+        tros_cost -= tros_cost % -100
+        return int(tros_cost)
+
+    # Функция для расчёта стоимости Демонтажа тента
+    def calculate_demontazh_cost(length, is_legal_entity, discount_percent):
+        demontazh_cost = int(length * 0.6 * price_manager.get_auto_price('work'))
+
+        if is_legal_entity:
+            demontazh_cost *= 1.2
+
+        if discount_percent > 0:
+            demontazh_cost *= (1 - discount_percent / 100)
+
+        demontazh_cost -= demontazh_cost % -100
+        return int(demontazh_cost)
+
+    # Функция для расчёта стоимости Ворот
+    def calculate_vorota_cost(width, height_g, marka, is_legal_entity, discount_percent):
+        ramka_vorot = (width * 2 + height_g * 2) / 6
+        ramka_vorot -= ramka_vorot % -1
+        zapory_count = width * 2 / 6
+        zapory_count -= zapory_count % -1
+
+        vorota_gazel = int((price_manager.get_auto_price('fanera_18') * 2 +
+                            price_manager.get_auto_price('petlya_gaz') * 6 +
+                            price_manager.get_auto_price('zamki_gaz') * 2 +
+                            (width * 2 + height_g * 3) * price_manager.get_auto_price('uplotnitel_18') +
+                            ramka_vorot * price_manager.get_auto_price('truba_60_40_3') +
+                            zapory_count * price_manager.get_auto_price('du_15') +
+                            32 * price_manager.get_auto_price('work')) * 2)
+        vorota_gazel -= vorota_gazel % -100
+
+        vorota_kamaz = int((price_manager.get_auto_price('fanera_21_2') * 2 +
+                            price_manager.get_auto_price('petlya_kamaz') * 8 +
+                            price_manager.get_auto_price('zamki_kamaz') * 2 +
+                            (width * 2 + height_g * 3) * price_manager.get_auto_price('uplotnitel_21') +
+                            ramka_vorot * price_manager.get_auto_price('truba_60_40_3') +
+                            zapory_count * price_manager.get_auto_price('du_15') +
+                            32 * price_manager.get_auto_price('work')) * 2)
+        vorota_kamaz -= vorota_kamaz % -100
+
+        vorota_other = int((price_manager.get_auto_price('fanera_21_3') * 2 +
+                            price_manager.get_auto_price('petlya_kamaz') * 8 +
+                            price_manager.get_auto_price('zamki_kamaz') * 2 +
+                            (width * 2 + height_g * 3) * price_manager.get_auto_price('uplotnitel_21') +
+                            ramka_vorot * price_manager.get_auto_price('truba_60_40_3') +
+                            zapory_count * price_manager.get_auto_price('du_15') +
+                            32 * price_manager.get_auto_price('work')) * 2)
+        vorota_other -= vorota_other % -100
+
+        if marka == "Газель":
+            vorota_cost = vorota_gazel
+        elif marka == "Иное" and height_g > 2.4:
+            vorota_cost = vorota_other
+        elif marka == "Иное" and height_g <= 2.4:
+            vorota_cost = vorota_kamaz
+        else:
+            vorota_cost = 0
+
+        if is_legal_entity:
+            vorota_cost *= 1.2
+
+        if discount_percent > 0:
+            vorota_cost *= (1 - discount_percent / 100)
+
+        vorota_cost -= vorota_cost % -100
+        return int(vorota_cost)
+
     # Рассчитываем площадь
     area = calculate_area(length, width, height_g, is_vorota, is_schit)
 
@@ -257,6 +409,8 @@ def page_auto_calculator(price_manager: PriceManager):
 
     # Форматирование стоимости
     def format_cost(cost):
+        if cost == 0:
+            return "Не выбрано"
         return "{:,.2f} руб".format(cost).replace(",", " ")
 
     # Расчет для каждого типа тента
@@ -273,6 +427,13 @@ def page_auto_calculator(price_manager: PriceManager):
             results_sdvizhnoy.append(
                 calculate_sdvizhnoy_krysha_cost(material_price, length, width, is_legal_entity, discount_percent))
 
+    # Расчет дополнительных компонентов
+    msk_cost = calculate_msk_cost(length, is_legal_entity, discount_percent)
+    shtornik_cost = calculate_shtornik_cost(length, is_legal_entity, discount_percent)
+    tros_cost = calculate_tros_cost(length, width, height_p, is_vorota, is_schit, is_legal_entity, discount_percent)
+    demontazh_cost = calculate_demontazh_cost(length, is_legal_entity, discount_percent)
+    vorota_cost = calculate_vorota_cost(width, height_g, marka, is_legal_entity, discount_percent) if marka else 0
+
     # Создаём DataFrame для основной таблицы
     if len(results_typical) >= 4:
         results_df = pd.DataFrame({
@@ -288,21 +449,19 @@ def page_auto_calculator(price_manager: PriceManager):
         })
 
         st.dataframe(results_df, hide_index=True, use_container_width=True)
+
+        # Дополнительные компоненты
+        st.subheader("Дополнительные компоненты")
+
+        additional_df = pd.DataFrame({
+            "Компонент": ["МСК (пластины)", "Шторный механизм", "Трос", "Демонтаж тента", "Ворота"],
+            "Стоимость": [format_cost(msk_cost), format_cost(shtornik_cost), format_cost(tros_cost),
+                          format_cost(demontazh_cost), format_cost(vorota_cost)]
+        })
+
+        st.dataframe(additional_df, hide_index=True, use_container_width=True)
     else:
         st.warning("Недостаточно данных для расчета")
-
-    # Дополнительная информация о других компонентах
-    with st.expander("Дополнительные компоненты (в разработке)"):
-        st.write("""
-        - МСК (пластины)
-        - Шторный механизм
-        - Трос
-        - Демонтаж тента
-        - Сдвижные стенки
-        - Каркас
-        - Ворота
-        """)
-        st.info("Полная версия калькулятора со всеми компонентами будет добавлена в следующем обновлении")
 
 
 def page_info():
